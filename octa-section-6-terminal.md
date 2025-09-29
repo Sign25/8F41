@@ -1,3 +1,8 @@
+---
+title: Раздел 6. Terminal (HMI) - Bluetooth, фото, retry, хранение данных
+order: 1.997502
+---
+
 # Раздел 6. Terminal (HMI) - Bluetooth, фото, retry, хранение данных
 
 ## 6.1 Архитектура Terminal
