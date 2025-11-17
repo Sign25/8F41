@@ -1,0 +1,230 @@
+/* Default style for PDF documents */
+
+@page {
+    size: A4;
+    margin: 2.5cm;
+
+    @top-center {
+        content: string(doc-title);
+        font-size: 10pt;
+        color: #666;
+    }
+
+    @bottom-center {
+        content: "Страница " counter(page) " из " counter(pages);
+        font-size: 10pt;
+        color: #666;
+    }
+}
+
+/* Основные стили */
+body {
+    font-family: 'DejaVu Sans', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #333;
+    text-align: justify;
+}
+
+/* Заголовки */
+h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    font-weight: bold;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    color: #2c3e50;
+}
+
+h1 {
+    font-size: 2.2em;
+    border-bottom: 3px solid #3498db;
+    padding-bottom: 0.3em;
+    string-set: doc-title content();
+}
+
+h2 {
+    font-size: 1.8em;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.2em;
+}
+
+h3 {
+    font-size: 1.4em;
+    color: #34495e;
+}
+
+h4 {
+    font-size: 1.2em;
+    color: #34495e;
+}
+
+/* Параграфы */
+p {
+    margin: 0.5em 0;
+    text-indent: 0;
+}
+
+/* Код */
+pre {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 9pt;
+    background-color: #2d2d2d;
+    color: #f8f8f2;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+    page-break-inside: avoid;
+    margin: 1em 0;
+    line-height: 1.4;
+}
+
+code {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    background-color: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #c7254e;
+}
+
+/* ASCII-арт */
+.ascii-art {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 8pt;
+    line-height: 1.2;
+    white-space: pre;
+    overflow-x: auto;
+    background-color: #f9f9f9;
+    padding: 10px;
+    border: 1px solid #ddd;
+    page-break-inside: avoid;
+    margin: 1em 0;
+}
+
+.ascii-optimized {
+    font-size: 6pt;
+}
+
+/* Таблицы */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    page-break-inside: avoid;
+    font-size: 10pt;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #4CAF50;
+    color: white;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Списки */
+ul, ol {
+    margin: 0.5em 0;
+    padding-left: 30px;
+}
+
+li {
+    margin: 0.3em 0;
+}
+
+/* Цитаты */
+blockquote {
+    border-left: 4px solid #3498db;
+    padding-left: 20px;
+    margin: 1em 0;
+    font-style: italic;
+    color: #555;
+    background-color: #f9f9f9;
+    padding: 10px 20px;
+}
+
+/* Изображения */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1.5em auto;
+    page-break-inside: avoid;
+}
+
+/* Горизонтальная линия */
+hr {
+    border: none;
+    border-top: 2px solid #ddd;
+    margin: 2em 0;
+}
+
+/* Ссылки */
+a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Печать ссылок */
+a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+}
+
+/* Разрывы страниц */
+.page-break {
+    page-break-after: always;
+}
+
+.no-break {
+    page-break-inside: avoid;
+}
+
+/* Заглавная страница */
+.document-header {
+    text-align: center;
+    page-break-after: always;
+    margin-bottom: 2em;
+}
+
+.document-title {
+    font-size: 3em;
+    margin: 2em 0 0.5em 0;
+}
+
+.document-author {
+    font-size: 1.2em;
+    color: #666;
+    margin-bottom: 1em;
+}
+
+/* Содержание */
+.toc {
+    page-break-after: always;
+}
+
+.toc ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.toc li {
+    margin: 0.5em 0;
+}
