@@ -8,7 +8,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from bs4 import BeautifulSoup
 from typing import Optional
-import re
+import os
 
 
 class WordGenerator:
@@ -184,9 +184,14 @@ class WordGenerator:
         """Добавление изображения"""
         src = element.get('src', '')
 
-        if src and src.startswith('/') or src.startswith('./'):
+        # Проверка что это локальный файл (исправлена логика)
+        if src and (src.startswith('/') or src.startswith('./')):
             try:
-                self.doc.add_picture(src, width=Inches(5))
+                # Дополнительная проверка существования файла
+                if os.path.exists(src):
+                    self.doc.add_picture(src, width=Inches(5))
+                else:
+                    self.doc.add_paragraph(f'[Изображение не найдено: {src}]')
             except Exception as e:
                 # Если не удалось загрузить изображение, добавляем заглушку
-                self.doc.add_paragraph(f'[Изображение: {src}]')
+                self.doc.add_paragraph(f'[Ошибка загрузки изображения: {src}]')

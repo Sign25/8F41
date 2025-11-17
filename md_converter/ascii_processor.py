@@ -70,7 +70,8 @@ class ASCIIProcessor:
                 "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
                 font_size
             )
-        except:
+        except (OSError, IOError):
+            # Если шрифт не найден, используем дефолтный
             font = ImageFont.load_default()
 
         # Расчет размера изображения
