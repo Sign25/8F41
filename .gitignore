@@ -49,3 +49,9 @@ Thumbs.db
 # Test coverage
 .coverage
 htmlcov/
+
+# Web application
+web/uploads/*
+!web/uploads/.gitkeep
+web/output/*
+!web/output/.gitkeep
