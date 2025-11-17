@@ -1,0 +1,229 @@
+/* Professional style for technical documentation */
+
+@page {
+    size: A4;
+    margin: 3cm 2.5cm;
+
+    @top-left {
+        content: string(doc-title);
+        font-size: 9pt;
+        color: #888;
+        font-style: italic;
+    }
+
+    @top-right {
+        content: string(section);
+        font-size: 9pt;
+        color: #888;
+    }
+
+    @bottom-right {
+        content: counter(page);
+        font-size: 10pt;
+        color: #666;
+    }
+
+    @bottom-left {
+        content: "OCTA Documentation";
+        font-size: 8pt;
+        color: #999;
+    }
+}
+
+/* Основные стили */
+body {
+    font-family: 'DejaVu Serif', Georgia, 'Times New Roman', serif;
+    font-size: 11pt;
+    line-height: 1.8;
+    color: #1a1a1a;
+    text-align: justify;
+    hyphens: auto;
+}
+
+/* Заголовки */
+h1 {
+    font-family: 'DejaVu Sans', Arial, sans-serif;
+    font-size: 2.5em;
+    font-weight: 700;
+    color: #1a1a1a;
+    border-bottom: 4px solid #2c3e50;
+    padding-bottom: 0.5em;
+    margin-top: 2em;
+    margin-bottom: 1em;
+    page-break-before: always;
+    string-set: doc-title content();
+}
+
+h1:first-of-type {
+    page-break-before: avoid;
+}
+
+h2 {
+    font-family: 'DejaVu Sans', Arial, sans-serif;
+    font-size: 1.8em;
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.3em;
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+    page-break-after: avoid;
+    string-set: section content();
+}
+
+h3 {
+    font-family: 'DejaVu Sans', Arial, sans-serif;
+    font-size: 1.4em;
+    font-weight: 600;
+    color: #34495e;
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    page-break-after: avoid;
+}
+
+h4 {
+    font-family: 'DejaVu Sans', Arial, sans-serif;
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #34495e;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+
+/* Код */
+pre {
+    font-family: 'DejaVu Sans Mono', 'Consolas', monospace;
+    font-size: 9pt;
+    background: linear-gradient(to bottom, #282c34 0%, #21252b 100%);
+    color: #abb2bf;
+    padding: 20px;
+    border-left: 4px solid #61afef;
+    border-radius: 4px;
+    overflow-x: auto;
+    page-break-inside: avoid;
+    margin: 1.5em 0;
+    line-height: 1.5;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+code {
+    font-family: 'DejaVu Sans Mono', 'Consolas', monospace;
+    background-color: #f6f8fa;
+    padding: 3px 7px;
+    border: 1px solid #e1e4e8;
+    border-radius: 3px;
+    font-size: 0.88em;
+    color: #24292e;
+}
+
+/* Таблицы */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2em 0;
+    page-break-inside: avoid;
+    font-size: 10pt;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+th {
+    background: linear-gradient(to bottom, #34495e 0%, #2c3e50 100%);
+    color: white;
+    font-weight: 600;
+    padding: 12px 15px;
+    text-align: left;
+    border: 1px solid #2c3e50;
+}
+
+td {
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+}
+
+tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+tr:hover {
+    background-color: #e9ecef;
+}
+
+/* ASCII-арт */
+.ascii-art {
+    font-family: 'DejaVu Sans Mono', 'Consolas', monospace;
+    font-size: 7pt;
+    line-height: 1.1;
+    white-space: pre;
+    background-color: #fafafa;
+    padding: 15px;
+    border: 1px solid #e1e4e8;
+    border-left: 4px solid #0366d6;
+    page-break-inside: avoid;
+    margin: 1.5em 0;
+}
+
+/* Цитаты */
+blockquote {
+    font-family: 'DejaVu Serif', Georgia, serif;
+    font-style: italic;
+    border-left: 5px solid #3498db;
+    padding: 15px 25px;
+    margin: 1.5em 0;
+    background-color: #f8f9fa;
+    color: #495057;
+    position: relative;
+}
+
+blockquote:before {
+    content: '"';
+    font-size: 4em;
+    color: #3498db;
+    opacity: 0.3;
+    position: absolute;
+    left: 10px;
+    top: -10px;
+}
+
+/* Заглавная страница */
+.document-header {
+    text-align: center;
+    page-break-after: always;
+    padding: 5cm 0;
+}
+
+.document-title {
+    font-family: 'DejaVu Sans', Arial, sans-serif;
+    font-size: 3.5em;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.document-author {
+    font-size: 1.4em;
+    color: #7f8c8d;
+    margin-top: 2em;
+    font-weight: 300;
+}
+
+/* Нумерованные разделы */
+body {
+    counter-reset: h2counter;
+}
+
+h2:before {
+    counter-increment: h2counter;
+    content: counter(h2counter) ". ";
+    color: #3498db;
+}
+
+h2 {
+    counter-reset: h3counter;
+}
+
+h3:before {
+    counter-increment: h3counter;
+    content: counter(h2counter) "." counter(h3counter) " ";
+    color: #3498db;
+}
