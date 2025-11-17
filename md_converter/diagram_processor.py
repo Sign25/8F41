@@ -39,6 +39,11 @@ class DiagramProcessor:
                 f'mermaid_{id(content)}.{self.output_format}'
             )
 
+        # Валидация пути для безопасности
+        output_path = os.path.abspath(output_path)
+        if not output_path.startswith(os.path.abspath(self.temp_dir)):
+            raise ValueError(f"Invalid output path: {output_path}")
+
         # Создание временного файла с Mermaid кодом
         mermaid_file = os.path.join(self.temp_dir, f'temp_{id(content)}.mmd')
         with open(mermaid_file, 'w', encoding='utf-8') as f:
@@ -76,6 +81,11 @@ class DiagramProcessor:
                 self.temp_dir,
                 f'graphviz_{id(content)}.{self.output_format}'
             )
+
+        # Валидация пути для безопасности
+        output_path = os.path.abspath(output_path)
+        if not output_path.startswith(os.path.abspath(self.temp_dir)):
+            raise ValueError(f"Invalid output path: {output_path}")
 
         # Создание временного DOT файла
         dot_file = os.path.join(self.temp_dir, f'temp_{id(content)}.dot')
@@ -123,7 +133,8 @@ class DiagramProcessor:
         # Добавление текста
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-        except:
+        except (OSError, IOError):
+            # Если шрифт не найден, используем дефолтный
             font = ImageFont.load_default()
 
         text = f"{diagram_type} Diagram\n(renderer not installed)"

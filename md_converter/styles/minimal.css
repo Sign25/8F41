@@ -1,0 +1,182 @@
+/* Minimal style for clean, simple documents */
+
+@page {
+    size: A4;
+    margin: 2cm;
+
+    @bottom-center {
+        content: counter(page);
+        font-size: 9pt;
+        color: #999;
+    }
+}
+
+/* Основные стили */
+body {
+    font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    line-height: 1.7;
+    color: #000;
+    max-width: 100%;
+}
+
+/* Заголовки */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    page-break-after: avoid;
+    color: #000;
+}
+
+h1 {
+    font-size: 2em;
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+h2 {
+    font-size: 1.6em;
+}
+
+h3 {
+    font-size: 1.3em;
+}
+
+h4 {
+    font-size: 1.1em;
+}
+
+/* Параграфы */
+p {
+    margin: 0.8em 0;
+}
+
+/* Код */
+pre {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 9pt;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    padding: 12px;
+    overflow-x: auto;
+    page-break-inside: avoid;
+    margin: 1em 0;
+    line-height: 1.4;
+}
+
+code {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    background-color: #f0f0f0;
+    padding: 2px 5px;
+    font-size: 0.9em;
+}
+
+/* ASCII-арт */
+.ascii-art {
+    font-family: 'DejaVu Sans Mono', 'Courier New', monospace;
+    font-size: 7pt;
+    line-height: 1.1;
+    white-space: pre;
+    background-color: #fafafa;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    page-break-inside: avoid;
+    margin: 1em 0;
+}
+
+.ascii-optimized {
+    font-size: 6pt;
+}
+
+/* Таблицы */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    page-break-inside: avoid;
+    font-size: 10pt;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+th {
+    background-color: #f5f5f5;
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+/* Списки */
+ul, ol {
+    margin: 0.5em 0;
+    padding-left: 25px;
+}
+
+li {
+    margin: 0.3em 0;
+}
+
+/* Цитаты */
+blockquote {
+    border-left: 3px solid #ccc;
+    padding-left: 15px;
+    margin: 1em 0;
+    color: #666;
+}
+
+/* Изображения */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1em auto;
+    page-break-inside: avoid;
+}
+
+/* Горизонтальная линия */
+hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 2em 0;
+}
+
+/* Ссылки */
+a {
+    color: #000;
+    text-decoration: underline;
+}
+
+/* Заглавная страница */
+.document-header {
+    text-align: center;
+    page-break-after: always;
+    padding: 3cm 0;
+}
+
+.document-title {
+    font-size: 2.5em;
+    font-weight: 600;
+    margin: 0;
+}
+
+.document-author {
+    font-size: 1.1em;
+    color: #666;
+    margin-top: 1.5em;
+}
+
+/* Разрывы страниц */
+.page-break {
+    page-break-after: always;
+}
+
+.no-break {
+    page-break-inside: avoid;
+}
