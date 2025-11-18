@@ -32,56 +32,92 @@ def optimize_images_in_html(html_content):
     Converts large images to compressed JPEG format
     """
     def replace_image(match):
+        full_tag = match.group(0)
         data_url = match.group(1)
 
-        # Skip if already small or if it's an SVG
-        if 'svg' in data_url.lower():
-            # Remove SVG images to reduce size - they're often huge in PDF
-            logger.info("Removing SVG image to reduce PDF size")
-            return '<div style="text-align:center;padding:20px;background:#f0f0f0;border:1px solid #ccc;">Диаграмма (удалена для уменьшения размера PDF)</div>'
-
         try:
+            # Skip if it's an SVG
+            if 'svg' in data_url.lower():
+                # Remove SVG images to reduce size - they're often huge in PDF
+                logger.info("Removing SVG image to reduce PDF size")
+                return '<div style="text-align:center;padding:20px;background:#f0f0f0;border:1px solid #ccc;">Диаграмма (удалена для уменьшения размера PDF)</div>'
+
             # Extract base64 data
-            if ';base64,' in data_url:
-                header, encoded = data_url.split(';base64,', 1)
-                image_data = base64.b64decode(encoded)
+            if ';base64,' not in data_url:
+                logger.debug("Skipping non-base64 image")
+                return full_tag
 
-                # Open and optimize image
-                img = Image.open(io.BytesIO(image_data))
+            header, encoded = data_url.split(';base64,', 1)
 
-                # Convert to RGB if necessary
-                if img.mode in ('RGBA', 'LA', 'P'):
-                    background = Image.new('RGB', img.size, (255, 255, 255))
-                    if img.mode == 'P':
-                        img = img.convert('RGBA')
-                    background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
-                    img = background
+            # Validate base64 string length
+            if len(encoded) < 100:
+                logger.debug("Skipping small/invalid base64 data")
+                return full_tag
 
-                # Resize if too large (max 1200px width)
-                max_width = 1200
-                if img.width > max_width:
-                    ratio = max_width / img.width
-                    new_size = (max_width, int(img.height * ratio))
-                    img = img.resize(new_size, Image.Resampling.LANCZOS)
-                    logger.info(f"Resized image from {img.size} to {new_size}")
+            # Decode base64
+            try:
+                image_data = base64.b64decode(encoded, validate=True)
+            except Exception as e:
+                logger.warning(f"Invalid base64 data, skipping: {e}")
+                return full_tag
 
-                # Save as optimized JPEG
-                output = io.BytesIO()
-                img.save(output, format='JPEG', quality=75, optimize=True)
-                optimized_data = base64.b64encode(output.getvalue()).decode()
+            # Skip very small images (< 10KB)
+            if len(image_data) < 10240:
+                logger.debug("Skipping small image (< 10KB)")
+                return full_tag
 
-                logger.info(f"Optimized image: {len(image_data)} -> {len(base64.b64decode(optimized_data))} bytes")
+            # Try to open image with Pillow
+            try:
+                img_buffer = io.BytesIO(image_data)
+                img = Image.open(img_buffer)
+                img.verify()  # Verify it's a valid image
 
-                return f'<img src="data:image/jpeg;base64,{optimized_data}"'
+                # Reopen after verify (verify closes the file)
+                img_buffer.seek(0)
+                img = Image.open(img_buffer)
+
+            except Exception as e:
+                logger.warning(f"Cannot open/verify image (corrupted?), skipping: {e}")
+                return full_tag
+
+            # Convert to RGB if necessary
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                if img.mode == 'RGBA':
+                    background.paste(img, mask=img.split()[-1])
+                else:
+                    background.paste(img)
+                img = background
+
+            # Resize if too large (max 1200px width)
+            max_width = 1200
+            if img.width > max_width:
+                ratio = max_width / img.width
+                new_size = (max_width, int(img.height * ratio))
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+                logger.info(f"Resized image: {img.width}x{img.height} -> {new_size[0]}x{new_size[1]}")
+
+            # Save as optimized JPEG
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=75, optimize=True)
+            optimized_data = base64.b64encode(output.getvalue()).decode()
+
+            size_before = len(image_data) / 1024
+            size_after = len(base64.b64decode(optimized_data)) / 1024
+            logger.info(f"Optimized image: {size_before:.1f}KB -> {size_after:.1f}KB")
+
+            return f'<img src="data:image/jpeg;base64,{optimized_data}"'
 
         except Exception as e:
-            logger.warning(f"Failed to optimize image: {e}")
-            return match.group(0)
-
-        return match.group(0)
+            logger.error(f"Unexpected error optimizing image: {e}", exc_info=True)
+            return full_tag
 
     # Replace all img tags with src="data:..."
+    logger.info("Starting image optimization...")
     optimized = re.sub(r'<img\s+src="(data:[^"]+)"', replace_image, html_content)
+    logger.info("Image optimization completed")
     return optimized
 
 
