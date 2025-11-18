@@ -364,33 +364,17 @@
             compress: true
         });
 
-        // Check available fonts and select one with Cyrillic support
-        let fontName = 'helvetica';
+        // Use Roboto font with Cyrillic support
+        let fontName = 'Roboto';
 
         try {
-            const fontList = pdf.getFontList();
-            console.log('Available fonts:', Object.keys(fontList));
-
-            // Try fonts in order of preference (all support Cyrillic)
-            if (fontList['ArialMS']) {
-                fontName = 'ArialMS';
-                console.log('Using ArialMS font for full Unicode/Cyrillic support');
-            } else if (fontList['ArialUnicodeMS']) {
-                fontName = 'ArialUnicodeMS';
-                console.log('Using ArialUnicodeMS font for full Unicode/Cyrillic support');
-            } else if (fontList['NotoSans']) {
-                fontName = 'NotoSans';
-                console.log('Using NotoSans font for Cyrillic support');
-            } else if (fontList['Roboto']) {
-                fontName = 'Roboto';
-                console.log('Using Roboto font for Cyrillic support');
-            } else {
-                console.warn('No Unicode fonts available. Available fonts:', Object.keys(fontList));
-                console.warn('Using helvetica (WARNING: limited Cyrillic support)');
-            }
+            // Roboto font is already added to jsPDF by roboto-font.js
+            pdf.setFont('Roboto', 'normal');
+            console.log('Using Roboto font for full Cyrillic support');
         } catch (e) {
-            console.error('Font check failed:', e);
-            console.warn('Fallback to helvetica');
+            console.warn('Roboto font not available, using helvetica');
+            console.warn('WARNING: Cyrillic characters may not display correctly');
+            fontName = 'helvetica';
         }
 
         // Academic style settings
