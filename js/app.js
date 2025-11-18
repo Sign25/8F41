@@ -365,6 +365,9 @@
         });
 
         // Use Roboto font with Cyrillic support
+        // IMPORTANT: Only 'normal' style is registered in roboto-font.js
+        // Using 'bold' or 'italic' would cause jsPDF to fallback to helvetica,
+        // which doesn't support Cyrillic characters properly
         let fontName = 'Roboto';
 
         try {
@@ -421,7 +424,7 @@
 
         // Title page
         if (metadata.title && metadata.title.trim()) {
-            pdf.setFont(fontName, 'bold');
+            pdf.setFont(fontName, 'normal');
             pdf.setFontSize(fontSize.title);
             const titleLines = splitText(metadata.title, contentWidth);
             titleLines.forEach(line => {
@@ -432,7 +435,7 @@
         }
 
         // Metadata
-        pdf.setFont(fontName, 'italic');
+        pdf.setFont(fontName, 'normal');
         pdf.setFontSize(fontSize.small);
         if (metadata.author) {
             pdf.text(`Автор: ${metadata.author}`, pageWidth / 2, yPosition, { align: 'center' });
@@ -463,7 +466,7 @@
                     yPosition = margin;
                 }
                 checkAddPage(20);
-                pdf.setFont(fontName, 'bold');
+                pdf.setFont(fontName, 'normal');
                 pdf.setFontSize(fontSize.h1);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -475,7 +478,7 @@
             // H2
             else if (tagName === 'h2') {
                 checkAddPage(15);
-                pdf.setFont(fontName, 'bold');
+                pdf.setFont(fontName, 'normal');
                 pdf.setFontSize(fontSize.h2);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -487,7 +490,7 @@
             // H3
             else if (tagName === 'h3') {
                 checkAddPage(12);
-                pdf.setFont(fontName, 'bold');
+                pdf.setFont(fontName, 'normal');
                 pdf.setFontSize(fontSize.h3);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -513,7 +516,7 @@
             else if (tagName === 'pre') {
                 checkAddPage(15);
                 const code = element.textContent.trim();
-                pdf.setFont('courier', 'normal');
+                pdf.setFont(fontName, 'normal');
                 pdf.setFontSize(fontSize.small);
                 pdf.setFillColor(246, 248, 250);
                 const codeLines = code.split('\n');
@@ -567,7 +570,7 @@
                     headStyles: {
                         fillColor: [246, 248, 250],
                         textColor: [0, 0, 0],
-                        fontStyle: 'bold'
+                        fontStyle: 'normal'
                     },
                     alternateRowStyles: {
                         fillColor: [246, 248, 250]
@@ -632,7 +635,7 @@
             // Blockquote
             else if (tagName === 'blockquote') {
                 checkAddPage(10);
-                pdf.setFont(fontName, 'italic');
+                pdf.setFont(fontName, 'normal');
                 pdf.setFontSize(fontSize.normal);
                 pdf.setDrawColor(208, 215, 222);
                 pdf.setLineWidth(1);
