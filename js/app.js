@@ -40,14 +40,22 @@
         typographer: true,
         breaks: false,
         highlight: function (str, lang) {
+            const langClass = lang ? ` class="language-${lang}"` : '';
+
+            // For Mermaid diagrams, just return code block with language class
+            if (lang === 'mermaid') {
+                return `<pre class="hljs"><code${langClass}>${md.utils.escapeHtml(str)}</code></pre>`;
+            }
+
+            // For other languages, try to highlight
             if (lang && window.hljs && window.hljs.getLanguage(lang)) {
                 try {
-                    return '<pre class="hljs"><code>' +
+                    return '<pre class="hljs"><code' + langClass + '>' +
                            window.hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
                            '</code></pre>';
                 } catch (__) {}
             }
-            return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
+            return '<pre class="hljs"><code' + langClass + '>' + md.utils.escapeHtml(str) + '</code></pre>';
         }
     }).enable('table');
 
@@ -78,7 +86,16 @@
     // Event Listeners
     function setupEventListeners() {
         fileInput.addEventListener('change', handleFileSelect);
-        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Click handler for upload area - but not on the label itself
+        uploadArea.addEventListener('click', (e) => {
+            // Don't trigger if clicking on the label
+            if (e.target.tagName !== 'LABEL' && !e.target.closest('label')) {
+                fileInput.value = ''; // Reset to allow selecting the same file twice
+                fileInput.click();
+            }
+        });
+
         uploadArea.addEventListener('dragover', handleDragOver);
         uploadArea.addEventListener('dragleave', handleDragLeave);
         uploadArea.addEventListener('drop', handleDrop);
@@ -347,6 +364,20 @@
             compress: true
         });
 
+        // Check if Roboto font is available, otherwise use helvetica
+        let fontName = 'helvetica';
+        try {
+            // Try to use Roboto if available (supports Cyrillic)
+            if (pdf.getFontList()['Roboto']) {
+                fontName = 'Roboto';
+                console.log('Using Roboto font for Cyrillic support');
+            } else {
+                console.warn('Roboto font not available, using helvetica (limited Cyrillic support)');
+            }
+        } catch (e) {
+            console.warn('Font check failed, using helvetica');
+        }
+
         // Academic style settings
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
@@ -391,7 +422,7 @@
 
         // Title page
         if (metadata.title && metadata.title.trim()) {
-            pdf.setFont('helvetica', 'bold');
+            pdf.setFont(fontName, 'bold');
             pdf.setFontSize(fontSize.title);
             const titleLines = splitText(metadata.title, contentWidth);
             titleLines.forEach(line => {
@@ -402,7 +433,7 @@
         }
 
         // Metadata
-        pdf.setFont('helvetica', 'italic');
+        pdf.setFont(fontName, 'italic');
         pdf.setFontSize(fontSize.small);
         if (metadata.author) {
             pdf.text(`Автор: ${metadata.author}`, pageWidth / 2, yPosition, { align: 'center' });
@@ -433,7 +464,7 @@
                     yPosition = margin;
                 }
                 checkAddPage(20);
-                pdf.setFont('helvetica', 'bold');
+                pdf.setFont(fontName, 'bold');
                 pdf.setFontSize(fontSize.h1);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -445,7 +476,7 @@
             // H2
             else if (tagName === 'h2') {
                 checkAddPage(15);
-                pdf.setFont('helvetica', 'bold');
+                pdf.setFont(fontName, 'bold');
                 pdf.setFontSize(fontSize.h2);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -457,7 +488,7 @@
             // H3
             else if (tagName === 'h3') {
                 checkAddPage(12);
-                pdf.setFont('helvetica', 'bold');
+                pdf.setFont(fontName, 'bold');
                 pdf.setFontSize(fontSize.h3);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -469,7 +500,7 @@
             // Paragraph
             else if (tagName === 'p') {
                 checkAddPage(10);
-                pdf.setFont('helvetica', 'normal');
+                pdf.setFont(fontName, 'normal');
                 pdf.setFontSize(fontSize.normal);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -528,7 +559,7 @@
                     startY: yPosition,
                     margin: { left: margin, right: margin },
                     styles: {
-                        font: 'helvetica',
+                        font: fontName,
                         fontSize: fontSize.normal,
                         cellPadding: 2,
                         lineColor: [208, 215, 222],
@@ -602,7 +633,7 @@
             // Blockquote
             else if (tagName === 'blockquote') {
                 checkAddPage(10);
-                pdf.setFont('helvetica', 'italic');
+                pdf.setFont(fontName, 'italic');
                 pdf.setFontSize(fontSize.normal);
                 pdf.setDrawColor(208, 215, 222);
                 pdf.setLineWidth(1);
@@ -625,7 +656,7 @@
                 const items = element.querySelectorAll('li');
                 items.forEach((item, index) => {
                     checkAddPage(8);
-                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFont(fontName, 'normal');
                     pdf.setFontSize(fontSize.normal);
 
                     const bullet = tagName === 'ul' ? '•' : `${index + 1}.`;

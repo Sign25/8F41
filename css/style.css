@@ -654,6 +654,7 @@ body {
     overflow: auto;
     margin: 16px 0;
     border: 1px solid #d0d7de;
+    color: #000;
 }
 
 .preview-content pre code {
@@ -663,6 +664,7 @@ body {
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     font-size: 85%;
     line-height: 1.45;
+    color: #000;
 }
 
 .preview-content code {
@@ -672,6 +674,7 @@ body {
     font-size: 85%;
     border-radius: 6px;
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    color: #000;
 }
 
 /* Tables - With Borders */
