@@ -292,6 +292,18 @@ def generate_pdf():
         # Set remove_all_images=True to completely remove images for smallest PDF
         logger.info("Optimizing images...")
         html_content = optimize_images_in_html(html_content, remove_all_images=True)
+
+        # Remove ALL SVG elements (Mermaid diagrams are huge in PDFs)
+        logger.info("Removing SVG elements...")
+        svg_count = html_content.count('<svg')
+        html_content = re.sub(r'<svg[^>]*>.*?</svg>',
+                             '<div style="text-align:center;padding:20px;background:#f0f0f0;border:1px solid #ccc;">Диаграмма (удалена для уменьшения размера PDF)</div>',
+                             html_content, flags=re.DOTALL)
+        logger.info(f"Removed {svg_count} SVG elements")
+
+        # Remove Mermaid diagram containers
+        html_content = re.sub(r'<div[^>]*class="mermaid-diagram"[^>]*>.*?</div>', '', html_content, flags=re.DOTALL)
+
         logger.info("Image optimization complete")
 
         # Add title page if metadata exists
