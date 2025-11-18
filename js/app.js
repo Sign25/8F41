@@ -352,9 +352,9 @@
         }
     }
 
-    // Generate PDF using jsPDF.html() method for better Cyrillic support
+    // Generate PDF by converting HTML to images using html2canvas
     async function generatePDF() {
-        console.log('Starting PDF generation with jsPDF.html()');
+        console.log('Starting PDF generation with html2canvas');
         console.log('Metadata:', metadata);
         console.log('Parsed HTML length:', parsedHtml ? parsedHtml.length : 0);
 
@@ -363,20 +363,20 @@
             return;
         }
 
-        // Create a container for PDF generation
+        // Create a visible container for rendering
         const pdfContainer = document.createElement('div');
         pdfContainer.id = 'pdf-container';
-        pdfContainer.style.cssText = 'position: absolute; left: -9999px; width: 180mm; padding: 15mm; background: white; font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #000;';
+        pdfContainer.style.cssText = 'position: fixed; top: 0; left: 0; width: 794px; padding: 40px; background: white; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000; z-index: 10000;';
 
         // Build title section
         let titleSection = '';
         if (metadata.title && metadata.title.trim()) {
-            titleSection = '<div style="text-align: center; margin-bottom: 20px;"><h1 style="font-size: 22pt; margin: 40px 0 15px 0; font-weight: bold;">' + metadata.title + '</h1>';
+            titleSection = '<div style="text-align: center; margin-bottom: 30px;"><h1 style="font-size: 28px; margin: 60px 0 20px 0; font-weight: bold;">' + metadata.title + '</h1>';
             if (metadata.author) {
-                titleSection += '<p style="font-size: 12pt; margin: 8px 0;">Автор: ' + metadata.author + '</p>';
+                titleSection += '<p style="font-size: 16px; margin: 10px 0;">Автор: ' + metadata.author + '</p>';
             }
             if (metadata.date) {
-                titleSection += '<p style="font-size: 12pt; margin: 8px 0;">Дата: ' + metadata.date + '</p>';
+                titleSection += '<p style="font-size: 16px; margin: 10px 0;">Дата: ' + metadata.date + '</p>';
             }
             titleSection += '</div>';
         }
@@ -384,20 +384,20 @@
         // Build complete HTML with inline styles
         const styles = '<style>' +
             'body { margin: 0; padding: 0; }' +
-            'h1 { font-size: 18pt; margin: 12px 0 6px 0; font-weight: bold; }' +
-            'h2 { font-size: 15pt; margin: 10px 0 5px 0; font-weight: bold; }' +
-            'h3 { font-size: 13pt; margin: 8px 0 4px 0; font-weight: bold; }' +
-            'p { margin: 0 0 8px 0; text-align: justify; }' +
-            'pre { background: #f6f8fa; padding: 8px; border-radius: 3px; font-family: "Courier New", monospace; font-size: 9pt; }' +
-            'code { background: #f6f8fa; padding: 2px 4px; font-family: "Courier New", monospace; font-size: 9pt; }' +
-            'table { width: 100%; border-collapse: collapse; margin: 10px 0; }' +
-            'th, td { border: 1px solid #d0d7de; padding: 6px; text-align: left; }' +
-            'th { background: #f6f8fa; font-weight: bold; }' +
-            'blockquote { margin: 10px 0; padding-left: 10px; border-left: 3px solid #d0d7de; color: #57606a; }' +
-            'ul, ol { margin: 10px 0; padding-left: 20px; }' +
-            'li { margin: 4px 0; }' +
-            'img { max-width: 100%; height: auto; }' +
-            '.mermaid-diagram { text-align: center; margin: 10px 0; }' +
+            '#pdf-container h1 { font-size: 24px; margin: 16px 0 8px 0; font-weight: bold; }' +
+            '#pdf-container h2 { font-size: 20px; margin: 14px 0 7px 0; font-weight: bold; }' +
+            '#pdf-container h3 { font-size: 18px; margin: 12px 0 6px 0; font-weight: bold; }' +
+            '#pdf-container p { margin: 0 0 10px 0; text-align: justify; }' +
+            '#pdf-container pre { background: #f6f8fa; padding: 10px; border-radius: 4px; font-family: "Courier New", monospace; font-size: 12px; overflow-x: auto; }' +
+            '#pdf-container code { background: #f6f8fa; padding: 2px 6px; font-family: "Courier New", monospace; font-size: 12px; border-radius: 3px; }' +
+            '#pdf-container table { width: 100%; border-collapse: collapse; margin: 12px 0; }' +
+            '#pdf-container th, #pdf-container td { border: 1px solid #d0d7de; padding: 8px; text-align: left; }' +
+            '#pdf-container th { background: #f6f8fa; font-weight: bold; }' +
+            '#pdf-container blockquote { margin: 12px 0; padding-left: 12px; border-left: 4px solid #d0d7de; color: #57606a; }' +
+            '#pdf-container ul, #pdf-container ol { margin: 12px 0; padding-left: 24px; }' +
+            '#pdf-container li { margin: 5px 0; }' +
+            '#pdf-container img { max-width: 100%; height: auto; }' +
+            '#pdf-container .mermaid-diagram { text-align: center; margin: 12px 0; }' +
             '</style>';
 
         pdfContainer.innerHTML = styles + titleSection + parsedHtml;
@@ -407,31 +407,53 @@
 
         try {
             const { jsPDF } = window.jspdf;
+
+            const filename = (metadata.title || 'document').replace(/[^a-z0-9а-яё]/gi, '_').toLowerCase() + '.pdf';
+            console.log('Generating PDF with filename:', filename);
+
+            // Render the container as an image using html2canvas
+            console.log('Rendering HTML to canvas...');
+            const canvas = await html2canvas(pdfContainer, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                width: pdfContainer.scrollWidth,
+                height: pdfContainer.scrollHeight
+            });
+
+            console.log('Canvas created:', canvas.width, 'x', canvas.height);
+
+            // Calculate PDF dimensions
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+
             const pdf = new jsPDF({
                 orientation: 'portrait',
                 unit: 'mm',
                 format: 'a4'
             });
 
-            const filename = (metadata.title || 'document').replace(/[^a-z0-9а-яё]/gi, '_').toLowerCase() + '.pdf';
-            console.log('Generating PDF with filename:', filename);
+            const imgData = canvas.toDataURL('image/png');
 
-            // Use jsPDF html() method which properly renders HTML with fonts
-            await pdf.html(pdfContainer, {
-                callback: function(doc) {
-                    doc.save(filename);
-                    console.log('PDF generated successfully');
-                },
-                x: 15,
-                y: 15,
-                width: 180,
-                windowWidth: 800,
-                html2canvas: {
-                    scale: 0.25,
-                    useCORS: true,
-                    logging: false
-                }
-            });
+            // Add first page
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            // Add additional pages if needed
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            console.log('Saving PDF...');
+            pdf.save(filename);
+            console.log('PDF generated successfully');
 
         } catch (error) {
             console.error('Error generating PDF:', error);
