@@ -4,6 +4,11 @@
 (function() {
     'use strict';
 
+    // Version
+    const APP_VERSION = '2.1.0';
+    const APP_NAME = 'Markdown Document Converter';
+    const BUILD_DATE = '2024-11-18';
+
     // DOM Elements
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
@@ -58,6 +63,16 @@
     // Initialize
     function init() {
         setupEventListeners();
+        updateVersionInfo();
+    }
+
+    // Update version info in footer
+    function updateVersionInfo() {
+        const versionEl = document.getElementById('versionInfo');
+        if (versionEl) {
+            versionEl.textContent = `${APP_NAME} v${APP_VERSION}`;
+        }
+        console.log(`${APP_NAME} v${APP_VERSION} (Build: ${BUILD_DATE})`);
     }
 
     // Event Listeners
