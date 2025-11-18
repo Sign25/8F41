@@ -285,7 +285,6 @@
         }
 
         const format = document.querySelector('input[name="format"]:checked').value;
-        const style = document.getElementById('styleSelect').value;
 
         // Show progress
         optionsSection.style.display = 'none';
@@ -296,10 +295,10 @@
         try {
             if (format === 'pdf') {
                 progressText.textContent = 'Генерация PDF...';
-                await generatePDF(style);
+                await generatePDF();
             } else if (format === 'docx') {
                 progressText.textContent = 'Генерация DOCX...';
-                await generateDOCX(style);
+                await generateDOCX();
             }
 
             // Success - reset after download
@@ -311,71 +310,313 @@
         }
     }
 
-    // Generate PDF using jsPDF and html2canvas
-    async function generatePDF(style) {
+    // Generate PDF with academic style using jsPDF
+    async function generatePDF() {
         const { jsPDF } = window.jspdf;
 
-        // Create styled container
-        const container = document.createElement('div');
-        container.style.width = '800px';
-        container.style.padding = '40px';
-        container.style.backgroundColor = 'white';
-        container.style.fontFamily = 'Arial, sans-serif';
-        container.innerHTML = `
-            <h1 style="color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px;">
-                ${metadata.title}
-            </h1>
-            ${metadata.author ? `<p style="color: #7f8c8d;">Автор: ${metadata.author}</p>` : ''}
-            ${metadata.date ? `<p style="color: #7f8c8d;">Дата: ${metadata.date}</p>` : ''}
-            <div style="margin-top: 30px;">
-                ${parsedHtml}
-            </div>
-        `;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+            putOnlyUsedFonts: true,
+            compress: true
+        });
 
-        // Apply style-specific CSS
-        applyStyle(container, style);
+        // Academic style settings
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 25; // 25mm margins
+        const contentWidth = pageWidth - 2 * margin;
+        let yPosition = margin;
 
-        document.body.appendChild(container);
+        // Font sizes (12pt = ~4.23mm)
+        const fontSize = {
+            title: 18,
+            h1: 16,
+            h2: 14,
+            h3: 12,
+            normal: 12,
+            small: 10
+        };
 
-        try {
-            const canvas = await html2canvas(container, {
-                scale: 2,
-                useCORS: true,
-                logging: false
-            });
+        // Line heights
+        const lineHeight = {
+            title: 8,
+            h1: 7,
+            h2: 6,
+            h3: 5,
+            normal: 5,
+            small: 4
+        };
 
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-
-            const imgWidth = 210; // A4 width in mm
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            let heightLeft = imgHeight;
-            let position = 0;
-
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= 297; // A4 height
-
-            while (heightLeft >= 0) {
-                position = heightLeft - imgHeight;
+        // Helper function to add new page
+        function checkAddPage(requiredHeight = 20) {
+            if (yPosition + requiredHeight > pageHeight - margin) {
                 pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= 297;
+                yPosition = margin;
+                return true;
             }
-
-            const filename = metadata.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.pdf';
-            pdf.save(filename);
-
-        } finally {
-            document.body.removeChild(container);
+            return false;
         }
+
+        // Helper function to split text into lines
+        function splitText(text, maxWidth, fontSize) {
+            pdf.setFontSize(fontSize);
+            return pdf.splitTextToSize(text, maxWidth);
+        }
+
+        // Title page
+        pdf.setFont('times', 'bold');
+        pdf.setFontSize(fontSize.title);
+        const titleLines = splitText(metadata.title, contentWidth);
+        titleLines.forEach(line => {
+            pdf.text(line, pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += lineHeight.title;
+        });
+
+        yPosition += 10;
+
+        // Metadata
+        pdf.setFont('times', 'italic');
+        pdf.setFontSize(fontSize.small);
+        if (metadata.author) {
+            pdf.text(`Автор: ${metadata.author}`, pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += lineHeight.small;
+        }
+        if (metadata.date) {
+            pdf.text(`Дата: ${metadata.date}`, pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += lineHeight.small;
+        }
+
+        yPosition += 15;
+
+        // Parse HTML content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = parsedHtml;
+
+        // Process each element
+        const elements = tempDiv.children;
+
+        for (let i = 0; i < elements.length; i++) {
+            const element = elements[i];
+            const tagName = element.tagName.toLowerCase();
+
+            // H1 - start new page
+            if (tagName === 'h1') {
+                if (yPosition > margin + 20) {
+                    pdf.addPage();
+                    yPosition = margin;
+                }
+                checkAddPage(20);
+                pdf.setFont('times', 'bold');
+                pdf.setFontSize(fontSize.h1);
+                const lines = splitText(element.textContent.trim(), contentWidth);
+                lines.forEach(line => {
+                    pdf.text(line, margin, yPosition);
+                    yPosition += lineHeight.h1;
+                });
+                yPosition += 5;
+            }
+            // H2
+            else if (tagName === 'h2') {
+                checkAddPage(15);
+                pdf.setFont('times', 'bold');
+                pdf.setFontSize(fontSize.h2);
+                const lines = splitText(element.textContent.trim(), contentWidth);
+                lines.forEach(line => {
+                    pdf.text(line, margin, yPosition);
+                    yPosition += lineHeight.h2;
+                });
+                yPosition += 4;
+            }
+            // H3
+            else if (tagName === 'h3') {
+                checkAddPage(12);
+                pdf.setFont('times', 'bold');
+                pdf.setFontSize(fontSize.h3);
+                const lines = splitText(element.textContent.trim(), contentWidth);
+                lines.forEach(line => {
+                    pdf.text(line, margin, yPosition);
+                    yPosition += lineHeight.h3;
+                });
+                yPosition += 3;
+            }
+            // Paragraph
+            else if (tagName === 'p') {
+                checkAddPage(10);
+                pdf.setFont('times', 'normal');
+                pdf.setFontSize(fontSize.normal);
+                const lines = splitText(element.textContent.trim(), contentWidth);
+                lines.forEach(line => {
+                    checkAddPage(lineHeight.normal + 2);
+                    pdf.text(line, margin, yPosition);
+                    yPosition += lineHeight.normal;
+                });
+                yPosition += 3;
+            }
+            // Code block
+            else if (tagName === 'pre') {
+                checkAddPage(15);
+                const code = element.textContent.trim();
+                pdf.setFont('courier', 'normal');
+                pdf.setFontSize(fontSize.small);
+                pdf.setFillColor(246, 248, 250);
+                const codeLines = code.split('\n');
+                const codeHeight = codeLines.length * lineHeight.small + 4;
+
+                checkAddPage(codeHeight);
+
+                pdf.rect(margin, yPosition - 2, contentWidth, codeHeight, 'F');
+                codeLines.forEach(line => {
+                    const splitLines = splitText(line || ' ', contentWidth - 4);
+                    splitLines.forEach(subLine => {
+                        pdf.text(subLine, margin + 2, yPosition);
+                        yPosition += lineHeight.small;
+                    });
+                });
+                yPosition += 5;
+            }
+            // Table
+            else if (tagName === 'table') {
+                const headers = [];
+                const rows = [];
+
+                // Extract headers
+                const headerCells = element.querySelectorAll('thead th, tr:first-child th');
+                headerCells.forEach(cell => headers.push(cell.textContent.trim()));
+
+                // Extract rows
+                const bodyRows = element.querySelectorAll('tbody tr, tr:not(:first-child)');
+                bodyRows.forEach(row => {
+                    const rowData = [];
+                    row.querySelectorAll('td').forEach(cell => {
+                        rowData.push(cell.textContent.trim());
+                    });
+                    if (rowData.length > 0) rows.push(rowData);
+                });
+
+                checkAddPage(20);
+
+                pdf.autoTable({
+                    head: headers.length > 0 ? [headers] : undefined,
+                    body: rows,
+                    startY: yPosition,
+                    margin: { left: margin, right: margin },
+                    styles: {
+                        font: 'times',
+                        fontSize: fontSize.normal,
+                        cellPadding: 2,
+                        lineColor: [208, 215, 222],
+                        lineWidth: 0.1
+                    },
+                    headStyles: {
+                        fillColor: [246, 248, 250],
+                        textColor: [0, 0, 0],
+                        fontStyle: 'bold'
+                    },
+                    alternateRowStyles: {
+                        fillColor: [246, 248, 250]
+                    },
+                    tableLineColor: [208, 215, 222],
+                    tableLineWidth: 0.1
+                });
+
+                yPosition = pdf.lastAutoTable.finalY + 5;
+            }
+            // Mermaid diagram
+            else if (element.classList.contains('mermaid-diagram')) {
+                checkAddPage(80);
+
+                const svg = element.querySelector('svg');
+                if (svg) {
+                    try {
+                        // Create temporary container for diagram
+                        const diagramContainer = document.createElement('div');
+                        diagramContainer.style.position = 'absolute';
+                        diagramContainer.style.left = '-9999px';
+                        diagramContainer.style.background = 'white';
+                        diagramContainer.style.padding = '20px';
+                        diagramContainer.appendChild(svg.cloneNode(true));
+                        document.body.appendChild(diagramContainer);
+
+                        const canvas = await html2canvas(diagramContainer, {
+                            scale: 2,
+                            backgroundColor: '#ffffff'
+                        });
+
+                        document.body.removeChild(diagramContainer);
+
+                        const imgData = canvas.toDataURL('image/png');
+                        const imgWidth = contentWidth;
+                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                        // Ensure diagram fits on one page
+                        if (imgHeight > pageHeight - margin * 2) {
+                            const scale = (pageHeight - margin * 2) / imgHeight;
+                            const scaledWidth = imgWidth * scale;
+                            const scaledHeight = imgHeight * scale;
+                            checkAddPage(scaledHeight);
+                            pdf.addImage(imgData, 'PNG', margin, yPosition, scaledWidth, scaledHeight);
+                            yPosition += scaledHeight + 5;
+                        } else {
+                            checkAddPage(imgHeight);
+                            pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight);
+                            yPosition += imgHeight + 5;
+                        }
+                    } catch (error) {
+                        console.error('Error rendering diagram:', error);
+                    }
+                }
+            }
+            // Blockquote
+            else if (tagName === 'blockquote') {
+                checkAddPage(10);
+                pdf.setFont('times', 'italic');
+                pdf.setFontSize(fontSize.normal);
+                pdf.setDrawColor(208, 215, 222);
+                pdf.setLineWidth(1);
+
+                const quoteText = element.textContent.trim();
+                const lines = splitText(quoteText, contentWidth - 10);
+                const quoteHeight = lines.length * lineHeight.normal;
+
+                checkAddPage(quoteHeight + 4);
+
+                pdf.line(margin + 2, yPosition - 2, margin + 2, yPosition + quoteHeight);
+                lines.forEach(line => {
+                    pdf.text(line, margin + 6, yPosition);
+                    yPosition += lineHeight.normal;
+                });
+                yPosition += 4;
+            }
+            // Lists
+            else if (tagName === 'ul' || tagName === 'ol') {
+                const items = element.querySelectorAll('li');
+                items.forEach((item, index) => {
+                    checkAddPage(8);
+                    pdf.setFont('times', 'normal');
+                    pdf.setFontSize(fontSize.normal);
+
+                    const bullet = tagName === 'ul' ? '•' : `${index + 1}.`;
+                    const text = item.textContent.trim();
+                    const lines = splitText(text, contentWidth - 10);
+
+                    pdf.text(bullet, margin + 2, yPosition);
+                    lines.forEach((line, lineIndex) => {
+                        pdf.text(line, margin + 8, yPosition + (lineIndex * lineHeight.normal));
+                    });
+                    yPosition += lines.length * lineHeight.normal + 2;
+                });
+                yPosition += 3;
+            }
+        }
+
+        const filename = metadata.title.replace(/[^a-z0-9а-яё]/gi, '_').toLowerCase() + '.pdf';
+        pdf.save(filename);
     }
 
     // Generate DOCX using docx library
-    async function generateDOCX(style) {
+    async function generateDOCX() {
         const { Document, Packer, Paragraph, TextRun, HeadingLevel } = docx;
 
         // Parse HTML to docx elements
@@ -447,19 +688,6 @@
         saveAs(blob, filename);
     }
 
-    // Apply style to container
-    function applyStyle(container, style) {
-        if (style === 'professional') {
-            container.style.fontFamily = 'Georgia, serif';
-            container.querySelectorAll('h1, h2, h3').forEach(h => {
-                h.style.color = '#2c3e50';
-            });
-        } else if (style === 'minimal') {
-            container.style.fontFamily = 'Helvetica, Arial, sans-serif';
-            container.style.color = '#000';
-        }
-    }
-
     // Show error
     function showError(message) {
         optionsSection.style.display = 'none';
@@ -486,7 +714,6 @@
         uploadArea.style.display = 'block';
 
         document.querySelector('input[name="format"][value="pdf"]').checked = true;
-        document.getElementById('styleSelect').value = 'default';
     }
 
     // Initialize application
