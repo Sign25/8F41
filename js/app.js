@@ -352,9 +352,9 @@
         }
     }
 
-    // Generate PDF by converting HTML to images using html2canvas
+    // Generate PDF using Python backend server
     async function generatePDF() {
-        console.log('Starting PDF generation with html2canvas');
+        console.log('Starting PDF generation via Python server');
         console.log('Metadata:', metadata);
         console.log('Parsed HTML length:', parsedHtml ? parsedHtml.length : 0);
 
@@ -363,106 +363,68 @@
             return;
         }
 
-        // Create a visible container for rendering
-        const pdfContainer = document.createElement('div');
-        pdfContainer.id = 'pdf-container';
-        pdfContainer.style.cssText = 'position: fixed; top: 0; left: 0; width: 794px; padding: 40px; background: white; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000; z-index: 10000;';
-
-        // Build title section
-        let titleSection = '';
-        if (metadata.title && metadata.title.trim()) {
-            titleSection = '<div style="text-align: center; margin-bottom: 30px;"><h1 style="font-size: 28px; margin: 60px 0 20px 0; font-weight: bold;">' + metadata.title + '</h1>';
-            if (metadata.author) {
-                titleSection += '<p style="font-size: 16px; margin: 10px 0;">Автор: ' + metadata.author + '</p>';
-            }
-            if (metadata.date) {
-                titleSection += '<p style="font-size: 16px; margin: 10px 0;">Дата: ' + metadata.date + '</p>';
-            }
-            titleSection += '</div>';
-        }
-
-        // Build complete HTML with inline styles
-        const styles = '<style>' +
-            'body { margin: 0; padding: 0; }' +
-            '#pdf-container h1 { font-size: 24px; margin: 16px 0 8px 0; font-weight: bold; }' +
-            '#pdf-container h2 { font-size: 20px; margin: 14px 0 7px 0; font-weight: bold; }' +
-            '#pdf-container h3 { font-size: 18px; margin: 12px 0 6px 0; font-weight: bold; }' +
-            '#pdf-container p { margin: 0 0 10px 0; text-align: justify; }' +
-            '#pdf-container pre { background: #f6f8fa; padding: 10px; border-radius: 4px; font-family: "Courier New", monospace; font-size: 12px; overflow-x: auto; }' +
-            '#pdf-container code { background: #f6f8fa; padding: 2px 6px; font-family: "Courier New", monospace; font-size: 12px; border-radius: 3px; }' +
-            '#pdf-container table { width: 100%; border-collapse: collapse; margin: 12px 0; }' +
-            '#pdf-container th, #pdf-container td { border: 1px solid #d0d7de; padding: 8px; text-align: left; }' +
-            '#pdf-container th { background: #f6f8fa; font-weight: bold; }' +
-            '#pdf-container blockquote { margin: 12px 0; padding-left: 12px; border-left: 4px solid #d0d7de; color: #57606a; }' +
-            '#pdf-container ul, #pdf-container ol { margin: 12px 0; padding-left: 24px; }' +
-            '#pdf-container li { margin: 5px 0; }' +
-            '#pdf-container img { max-width: 100%; height: auto; }' +
-            '#pdf-container .mermaid-diagram { text-align: center; margin: 12px 0; }' +
-            '</style>';
-
-        pdfContainer.innerHTML = styles + titleSection + parsedHtml;
-        document.body.appendChild(pdfContainer);
-
-        console.log('PDF container created and added to DOM');
-
         try {
-            const { jsPDF } = window.jspdf;
-
-            const filename = (metadata.title || 'document').replace(/[^a-z0-9а-яё]/gi, '_').toLowerCase() + '.pdf';
-            console.log('Generating PDF with filename:', filename);
-
-            // Render the container as an image using html2canvas
-            console.log('Rendering HTML to canvas...');
-            const canvas = await html2canvas(pdfContainer, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                width: pdfContainer.scrollWidth,
-                height: pdfContainer.scrollHeight
-            });
-
-            console.log('Canvas created:', canvas.width, 'x', canvas.height);
-
-            // Calculate PDF dimensions
-            const imgWidth = 210; // A4 width in mm
-            const pageHeight = 297; // A4 height in mm
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            let heightLeft = imgHeight;
-            let position = 0;
-
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-
-            const imgData = canvas.toDataURL('image/png');
-
-            // Add first page
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-
-            // Add additional pages if needed
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
+            // Show loading indicator
+            const convertBtn = document.getElementById('convertBtn');
+            const originalText = convertBtn ? convertBtn.textContent : '';
+            if (convertBtn) {
+                convertBtn.disabled = true;
+                convertBtn.textContent = 'Генерация PDF...';
             }
 
-            console.log('Saving PDF...');
-            pdf.save(filename);
-            console.log('PDF generated successfully');
+            // Send HTML content to Python server
+            const response = await fetch('http://localhost:5000/generate-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    html: parsedHtml,
+                    title: metadata.title || 'Document',
+                    author: metadata.author || '',
+                    date: metadata.date || ''
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Server error');
+            }
+
+            // Download the PDF file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (metadata.title || 'document').replace(/[^a-z0-9а-яё]/gi, '_').toLowerCase() + '.pdf';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            console.log('PDF downloaded successfully');
+
+            // Restore button state
+            if (convertBtn) {
+                convertBtn.disabled = false;
+                convertBtn.textContent = originalText;
+            }
 
         } catch (error) {
             console.error('Error generating PDF:', error);
-            alert('Ошибка при генерации PDF: ' + error.message);
-            throw error;
-        } finally {
-            // Clean up
-            if (pdfContainer.parentNode) {
-                document.body.removeChild(pdfContainer);
+
+            let errorMessage = 'Ошибка при генерации PDF: ' + error.message;
+            if (error.message.includes('Failed to fetch')) {
+                errorMessage += '\n\nУбедитесь, что Python сервер запущен:\npython3 server.py';
+            }
+
+            alert(errorMessage);
+
+            // Restore button state
+            const convertBtn = document.getElementById('convertBtn');
+            if (convertBtn) {
+                convertBtn.disabled = false;
+                convertBtn.textContent = 'Скачать PDF';
             }
         }
     }
