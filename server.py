@@ -26,14 +26,23 @@ logger = logging.getLogger(__name__)
 font_config = FontConfiguration()
 
 
-def optimize_images_in_html(html_content):
+def optimize_images_in_html(html_content, remove_all_images=False):
     """
     Optimize base64 images in HTML to reduce PDF size
     Converts large images to compressed JPEG format
+
+    Args:
+        html_content: HTML content with embedded images
+        remove_all_images: If True, removes ALL images (most aggressive)
     """
     def replace_image(match):
         full_tag = match.group(0)
         data_url = match.group(1)
+
+        # OPTION: Remove all images for smallest PDF size
+        if remove_all_images:
+            logger.info("Removing image (remove_all_images=True)")
+            return ''  # Remove completely
 
         try:
             # Skip if it's an SVG
@@ -91,17 +100,17 @@ def optimize_images_in_html(html_content):
                     background.paste(img)
                 img = background
 
-            # Resize if too large (max 1200px width)
-            max_width = 1200
+            # AGGRESSIVE resize - max 400px width for much smaller PDFs
+            max_width = 400
             if img.width > max_width:
                 ratio = max_width / img.width
                 new_size = (max_width, int(img.height * ratio))
                 img = img.resize(new_size, Image.Resampling.LANCZOS)
                 logger.info(f"Resized image: {img.width}x{img.height} -> {new_size[0]}x{new_size[1]}")
 
-            # Save as optimized JPEG
+            # Save as highly compressed JPEG (quality 30 for small file size)
             output = io.BytesIO()
-            img.save(output, format='JPEG', quality=75, optimize=True)
+            img.save(output, format='JPEG', quality=30, optimize=True)
             optimized_data = base64.b64encode(output.getvalue()).decode()
 
             size_before = len(image_data) / 1024
@@ -280,8 +289,9 @@ def generate_pdf():
 '''
 
         # Optimize images in HTML to reduce PDF size
+        # Set remove_all_images=True to completely remove images for smallest PDF
         logger.info("Optimizing images...")
-        html_content = optimize_images_in_html(html_content)
+        html_content = optimize_images_in_html(html_content, remove_all_images=True)
         logger.info("Image optimization complete")
 
         # Add title page if metadata exists
