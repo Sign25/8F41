@@ -28,11 +28,12 @@
     let parsedHtml = '';
     let metadata = {};
 
-    // Initialize Markdown-it
+    // Initialize Markdown-it with table support
     const md = window.markdownit({
         html: true,
         linkify: true,
         typographer: true,
+        breaks: false,
         highlight: function (str, lang) {
             if (lang && window.hljs && window.hljs.getLanguage(lang)) {
                 try {
@@ -43,10 +44,16 @@
             }
             return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
         }
-    });
+    }).enable('table');
 
     // Initialize Mermaid
-    mermaid.initialize({ startOnLoad: false, theme: 'default' });
+    if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+    }
 
     // Initialize
     function init() {
@@ -185,23 +192,54 @@
 
     // Process Mermaid diagrams
     async function processMermaidDiagrams() {
+        if (typeof mermaid === 'undefined') {
+            console.warn('Mermaid library not loaded');
+            return;
+        }
+
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = parsedHtml;
 
-        const mermaidBlocks = tempDiv.querySelectorAll('code.language-mermaid');
+        const mermaidBlocks = tempDiv.querySelectorAll('code.language-mermaid, pre.language-mermaid code');
+
+        if (mermaidBlocks.length === 0) {
+            return;
+        }
 
         for (let i = 0; i < mermaidBlocks.length; i++) {
             const block = mermaidBlocks[i];
-            const mermaidCode = block.textContent;
+            const mermaidCode = block.textContent.trim();
+
+            if (!mermaidCode) {
+                continue;
+            }
 
             try {
-                const { svg } = await mermaid.render(`mermaid-${i}`, mermaidCode);
+                const uniqueId = `mermaid-diagram-${Date.now()}-${i}`;
+                const { svg } = await mermaid.render(uniqueId, mermaidCode);
                 const svgDiv = document.createElement('div');
                 svgDiv.className = 'mermaid-diagram';
                 svgDiv.innerHTML = svg;
-                block.parentElement.replaceWith(svgDiv);
+
+                // Replace the code block's parent <pre> element
+                const preElement = block.closest('pre');
+                if (preElement) {
+                    preElement.replaceWith(svgDiv);
+                } else {
+                    block.parentElement.replaceWith(svgDiv);
+                }
             } catch (error) {
-                console.warn('Failed to render Mermaid diagram:', error);
+                console.error('Failed to render Mermaid diagram:', error);
+                // Keep the original code block if rendering fails
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'mermaid-error';
+                errorDiv.style.color = '#e74c3c';
+                errorDiv.style.padding = '10px';
+                errorDiv.style.border = '1px solid #e74c3c';
+                errorDiv.style.borderRadius = '4px';
+                errorDiv.style.margin = '10px 0';
+                errorDiv.textContent = `Ошибка рендеринга Mermaid диаграммы: ${error.message}`;
+                block.parentElement.insertAdjacentElement('afterend', errorDiv);
             }
         }
 
