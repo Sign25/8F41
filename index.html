@@ -16,12 +16,12 @@
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/highlight.min.js"></script>
 
     <!-- PDF генератор -->
+    <!-- Альтернативный метод: html2pdf для лучшей поддержки кириллицы -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- Custom fonts VFS with Cyrillic support for jsPDF -->
-    <script src="https://cdn.jsdelivr.net/gh/sphilee/jsPDF-CustomFonts-support@master/dist/default_vfs.js"></script>
-    <script src="js/roboto-font.js"></script>
+    <!-- Note: Using html2pdf.js which leverages browser's native font rendering for better Cyrillic support -->
 
     <!-- DOCX генератор -->
     <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
