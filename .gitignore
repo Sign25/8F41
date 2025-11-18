@@ -1,29 +1,8 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
-venv/
-ENV/
-env/
+# Basic files
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
 
 # IDE
 .vscode/
@@ -31,27 +10,3 @@ env/
 *.swp
 *.swo
 *~
-
-# Output files
-*.pdf
-*.docx
-!example*.pdf
-!example*.docx
-
-# Temporary files
-*.tmp
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Test coverage
-.coverage
-htmlcov/
-
-# Web application
-web/uploads/*
-!web/uploads/.gitkeep
-web/output/*
-!web/output/.gitkeep
