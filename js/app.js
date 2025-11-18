@@ -200,7 +200,10 @@
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = parsedHtml;
 
-        const mermaidBlocks = tempDiv.querySelectorAll('code.language-mermaid, pre.language-mermaid code');
+        // Find all code blocks with mermaid language
+        const mermaidBlocks = tempDiv.querySelectorAll('pre > code.language-mermaid, code.language-mermaid');
+
+        console.log(`Found ${mermaidBlocks.length} Mermaid code blocks`);
 
         if (mermaidBlocks.length === 0) {
             return;
@@ -214,6 +217,8 @@
                 continue;
             }
 
+            console.log(`Processing Mermaid diagram ${i + 1}:`, mermaidCode.substring(0, 50));
+
             try {
                 const uniqueId = `mermaid-diagram-${Date.now()}-${i}`;
                 const { svg } = await mermaid.render(uniqueId, mermaidCode);
@@ -225,11 +230,13 @@
                 const preElement = block.closest('pre');
                 if (preElement) {
                     preElement.replaceWith(svgDiv);
+                    console.log(`Replaced <pre> with diagram ${i + 1}`);
                 } else {
                     block.parentElement.replaceWith(svgDiv);
+                    console.log(`Replaced parent with diagram ${i + 1}`);
                 }
             } catch (error) {
-                console.error('Failed to render Mermaid diagram:', error);
+                console.error(`Failed to render Mermaid diagram ${i + 1}:`, error);
                 // Keep the original code block if rendering fails
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'mermaid-error';
@@ -239,7 +246,10 @@
                 errorDiv.style.borderRadius = '4px';
                 errorDiv.style.margin = '10px 0';
                 errorDiv.textContent = `Ошибка рендеринга Mermaid диаграммы: ${error.message}`;
-                block.parentElement.insertAdjacentElement('afterend', errorDiv);
+                const preElement = block.closest('pre');
+                if (preElement) {
+                    preElement.insertAdjacentElement('afterend', errorDiv);
+                }
             }
         }
 
@@ -366,7 +376,7 @@
 
         // Title page
         if (metadata.title && metadata.title.trim()) {
-            pdf.setFont('times', 'bold');
+            pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(fontSize.title);
             const titleLines = splitText(metadata.title, contentWidth);
             titleLines.forEach(line => {
@@ -377,7 +387,7 @@
         }
 
         // Metadata
-        pdf.setFont('times', 'italic');
+        pdf.setFont('helvetica', 'italic');
         pdf.setFontSize(fontSize.small);
         if (metadata.author) {
             pdf.text(`Автор: ${metadata.author}`, pageWidth / 2, yPosition, { align: 'center' });
@@ -408,7 +418,7 @@
                     yPosition = margin;
                 }
                 checkAddPage(20);
-                pdf.setFont('times', 'bold');
+                pdf.setFont('helvetica', 'bold');
                 pdf.setFontSize(fontSize.h1);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -420,7 +430,7 @@
             // H2
             else if (tagName === 'h2') {
                 checkAddPage(15);
-                pdf.setFont('times', 'bold');
+                pdf.setFont('helvetica', 'bold');
                 pdf.setFontSize(fontSize.h2);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -432,7 +442,7 @@
             // H3
             else if (tagName === 'h3') {
                 checkAddPage(12);
-                pdf.setFont('times', 'bold');
+                pdf.setFont('helvetica', 'bold');
                 pdf.setFontSize(fontSize.h3);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -444,7 +454,7 @@
             // Paragraph
             else if (tagName === 'p') {
                 checkAddPage(10);
-                pdf.setFont('times', 'normal');
+                pdf.setFont('helvetica', 'normal');
                 pdf.setFontSize(fontSize.normal);
                 const lines = splitText(element.textContent.trim(), contentWidth);
                 lines.forEach(line => {
@@ -503,7 +513,7 @@
                     startY: yPosition,
                     margin: { left: margin, right: margin },
                     styles: {
-                        font: 'times',
+                        font: 'helvetica',
                         fontSize: fontSize.normal,
                         cellPadding: 2,
                         lineColor: [208, 215, 222],
@@ -577,7 +587,7 @@
             // Blockquote
             else if (tagName === 'blockquote') {
                 checkAddPage(10);
-                pdf.setFont('times', 'italic');
+                pdf.setFont('helvetica', 'italic');
                 pdf.setFontSize(fontSize.normal);
                 pdf.setDrawColor(208, 215, 222);
                 pdf.setLineWidth(1);
@@ -600,7 +610,7 @@
                 const items = element.querySelectorAll('li');
                 items.forEach((item, index) => {
                     checkAddPage(8);
-                    pdf.setFont('times', 'normal');
+                    pdf.setFont('helvetica', 'normal');
                     pdf.setFontSize(fontSize.normal);
 
                     const bullet = tagName === 'ul' ? '•' : `${index + 1}.`;
