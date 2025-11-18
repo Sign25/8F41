@@ -360,21 +360,21 @@
         }
 
         // Helper function to split text into lines
-        function splitText(text, maxWidth, fontSize) {
-            pdf.setFontSize(fontSize);
+        function splitText(text, maxWidth) {
             return pdf.splitTextToSize(text, maxWidth);
         }
 
         // Title page
-        pdf.setFont('times', 'bold');
-        pdf.setFontSize(fontSize.title);
-        const titleLines = splitText(metadata.title, contentWidth);
-        titleLines.forEach(line => {
-            pdf.text(line, pageWidth / 2, yPosition, { align: 'center' });
-            yPosition += lineHeight.title;
-        });
-
-        yPosition += 10;
+        if (metadata.title && metadata.title.trim()) {
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(fontSize.title);
+            const titleLines = splitText(metadata.title, contentWidth);
+            titleLines.forEach(line => {
+                pdf.text(line, pageWidth / 2, yPosition, { align: 'center' });
+                yPosition += lineHeight.title;
+            });
+            yPosition += 10;
+        }
 
         // Metadata
         pdf.setFont('times', 'italic');
@@ -545,6 +545,12 @@
                         });
 
                         document.body.removeChild(diagramContainer);
+
+                        // Check if canvas is valid
+                        if (canvas.width === 0 || canvas.height === 0) {
+                            console.warn('Invalid canvas size for diagram');
+                            return;
+                        }
 
                         const imgData = canvas.toDataURL('image/png');
                         const imgWidth = contentWidth;
