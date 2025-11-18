@@ -10,3 +10,12 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Node.js
+node_modules/
+npm-debug.log
+package-lock.json
+
+# Test output
+test-output/
+*.pdf

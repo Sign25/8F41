@@ -1,0 +1,12 @@
+{
+  "name": "md-converter-test",
+  "version": "1.0.0",
+  "description": "Test scripts for Markdown to PDF converter",
+  "scripts": {
+    "test": "node test-pdf.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.6.0",
+    "pdf-parse": "^1.1.1"
+  }
+}
