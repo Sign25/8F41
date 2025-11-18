@@ -364,18 +364,33 @@
             compress: true
         });
 
-        // Check if Roboto font is available, otherwise use helvetica
+        // Check available fonts and select one with Cyrillic support
         let fontName = 'helvetica';
+
         try {
-            // Try to use Roboto if available (supports Cyrillic)
-            if (pdf.getFontList()['Roboto']) {
+            const fontList = pdf.getFontList();
+            console.log('Available fonts:', Object.keys(fontList));
+
+            // Try fonts in order of preference (all support Cyrillic)
+            if (fontList['ArialMS']) {
+                fontName = 'ArialMS';
+                console.log('Using ArialMS font for full Unicode/Cyrillic support');
+            } else if (fontList['ArialUnicodeMS']) {
+                fontName = 'ArialUnicodeMS';
+                console.log('Using ArialUnicodeMS font for full Unicode/Cyrillic support');
+            } else if (fontList['NotoSans']) {
+                fontName = 'NotoSans';
+                console.log('Using NotoSans font for Cyrillic support');
+            } else if (fontList['Roboto']) {
                 fontName = 'Roboto';
                 console.log('Using Roboto font for Cyrillic support');
             } else {
-                console.warn('Roboto font not available, using helvetica (limited Cyrillic support)');
+                console.warn('No Unicode fonts available. Available fonts:', Object.keys(fontList));
+                console.warn('Using helvetica (WARNING: limited Cyrillic support)');
             }
         } catch (e) {
-            console.warn('Font check failed, using helvetica');
+            console.error('Font check failed:', e);
+            console.warn('Fallback to helvetica');
         }
 
         // Academic style settings
