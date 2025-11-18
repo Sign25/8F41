@@ -352,334 +352,183 @@
         }
     }
 
-    // Generate PDF with academic style using jsPDF
+    // Generate PDF using html2pdf.js for better Cyrillic support
     async function generatePDF() {
-        const { jsPDF } = window.jspdf;
+        console.log('Starting PDF generation with html2pdf.js for Cyrillic support');
 
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-            putOnlyUsedFonts: true,
-            compress: true
-        });
+        // Create a container for PDF generation with proper styling
+        const pdfContainer = document.createElement('div');
+        pdfContainer.style.cssText = `
+            position: absolute;
+            left: -9999px;
+            width: 210mm;
+            padding: 25mm;
+            background: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #000;
+        `;
 
-        // Use Roboto font with Cyrillic support
-        // IMPORTANT: Only 'normal' style is registered in roboto-font.js
-        // Using 'bold' or 'italic' would cause jsPDF to fallback to helvetica,
-        // which doesn't support Cyrillic characters properly
-        let fontName = 'Roboto';
+        // Add title page if metadata exists
+        let titleHtml = '';
+        if (metadata.title && metadata.title.trim()) {
+            titleHtml += `
+                <div style="text-align: center; margin-bottom: 30mm;">
+                    <h1 style="font-size: 24pt; margin: 60mm 0 20mm 0; font-weight: bold;">${metadata.title}</h1>
+            `;
+            if (metadata.author) {
+                titleHtml += `<p style="font-size: 14pt; margin: 10mm 0;">Автор: ${metadata.author}</p>`;
+            }
+            if (metadata.date) {
+                titleHtml += `<p style="font-size: 14pt; margin: 10mm 0;">Дата: ${metadata.date}</p>`;
+            }
+            titleHtml += `</div>`;
+        }
+
+        // Add content with proper styling
+        const contentHtml = `
+            <style>
+                @page {
+                    margin: 0;
+                }
+                body {
+                    margin: 0;
+                    padding: 0;
+                }
+                h1 {
+                    font-size: 20pt;
+                    margin: 15mm 0 8mm 0;
+                    font-weight: bold;
+                    page-break-before: always;
+                    page-break-after: avoid;
+                }
+                h1:first-of-type {
+                    page-break-before: auto;
+                }
+                h2 {
+                    font-size: 16pt;
+                    margin: 12mm 0 6mm 0;
+                    font-weight: bold;
+                    page-break-after: avoid;
+                }
+                h3 {
+                    font-size: 14pt;
+                    margin: 10mm 0 5mm 0;
+                    font-weight: bold;
+                    page-break-after: avoid;
+                }
+                p {
+                    margin: 0 0 5mm 0;
+                    text-align: justify;
+                }
+                pre {
+                    background: #f6f8fa;
+                    padding: 3mm;
+                    border-radius: 1mm;
+                    overflow-x: auto;
+                    font-family: "Courier New", Courier, monospace;
+                    font-size: 10pt;
+                    line-height: 1.4;
+                    page-break-inside: avoid;
+                }
+                code {
+                    background: #f6f8fa;
+                    padding: 1mm 2mm;
+                    border-radius: 0.5mm;
+                    font-family: "Courier New", Courier, monospace;
+                    font-size: 10pt;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 5mm 0;
+                    page-break-inside: avoid;
+                }
+                th, td {
+                    border: 0.5pt solid #d0d7de;
+                    padding: 2mm 3mm;
+                    text-align: left;
+                }
+                th {
+                    background: #f6f8fa;
+                    font-weight: bold;
+                }
+                blockquote {
+                    margin: 5mm 0;
+                    padding-left: 4mm;
+                    border-left: 1mm solid #d0d7de;
+                    color: #57606a;
+                }
+                ul, ol {
+                    margin: 5mm 0;
+                    padding-left: 8mm;
+                }
+                li {
+                    margin: 2mm 0;
+                }
+                img {
+                    max-width: 100%;
+                    height: auto;
+                    page-break-inside: avoid;
+                }
+                .mermaid-diagram {
+                    text-align: center;
+                    margin: 5mm 0;
+                    page-break-inside: avoid;
+                }
+            </style>
+            ${titleHtml}
+            ${parsedHtml}
+        `;
+
+        pdfContainer.innerHTML = contentHtml;
+        document.body.appendChild(pdfContainer);
 
         try {
-            // Roboto font is already added to jsPDF by roboto-font.js
-            pdf.setFont('Roboto', 'normal');
-            console.log('Using Roboto font for full Cyrillic support');
-        } catch (e) {
-            console.warn('Roboto font not available, using helvetica');
-            console.warn('WARNING: Cyrillic characters may not display correctly');
-            fontName = 'helvetica';
-        }
+            // Configure html2pdf options
+            const filename = metadata.title.replace(/[^a-z0-9а-яё]/gi, '_').toLowerCase() + '.pdf';
 
-        // Academic style settings
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 25; // 25mm margins
-        const contentWidth = pageWidth - 2 * margin;
-        let yPosition = margin;
-
-        // Font sizes (12pt = ~4.23mm)
-        const fontSize = {
-            title: 18,
-            h1: 16,
-            h2: 14,
-            h3: 12,
-            normal: 12,
-            small: 10
-        };
-
-        // Line heights
-        const lineHeight = {
-            title: 8,
-            h1: 7,
-            h2: 6,
-            h3: 5,
-            normal: 5,
-            small: 4
-        };
-
-        // Helper function to add new page
-        function checkAddPage(requiredHeight = 20) {
-            if (yPosition + requiredHeight > pageHeight - margin) {
-                pdf.addPage();
-                yPosition = margin;
-                return true;
-            }
-            return false;
-        }
-
-        // Helper function to split text into lines
-        function splitText(text, maxWidth) {
-            return pdf.splitTextToSize(text, maxWidth);
-        }
-
-        // Title page
-        if (metadata.title && metadata.title.trim()) {
-            pdf.setFont(fontName, 'normal');
-            pdf.setFontSize(fontSize.title);
-            const titleLines = splitText(metadata.title, contentWidth);
-            titleLines.forEach(line => {
-                pdf.text(line, pageWidth / 2, yPosition, { align: 'center' });
-                yPosition += lineHeight.title;
-            });
-            yPosition += 10;
-        }
-
-        // Metadata
-        pdf.setFont(fontName, 'normal');
-        pdf.setFontSize(fontSize.small);
-        if (metadata.author) {
-            pdf.text(`Автор: ${metadata.author}`, pageWidth / 2, yPosition, { align: 'center' });
-            yPosition += lineHeight.small;
-        }
-        if (metadata.date) {
-            pdf.text(`Дата: ${metadata.date}`, pageWidth / 2, yPosition, { align: 'center' });
-            yPosition += lineHeight.small;
-        }
-
-        yPosition += 15;
-
-        // Parse HTML content
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = parsedHtml;
-
-        // Process each element
-        const elements = tempDiv.children;
-
-        for (let i = 0; i < elements.length; i++) {
-            const element = elements[i];
-            const tagName = element.tagName.toLowerCase();
-
-            // H1 - start new page
-            if (tagName === 'h1') {
-                if (yPosition > margin + 20) {
-                    pdf.addPage();
-                    yPosition = margin;
+            const options = {
+                margin: 0, // We handle margins in CSS
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    letterRendering: true
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'portrait',
+                    compress: true
+                },
+                pagebreak: {
+                    mode: ['avoid-all', 'css', 'legacy'],
+                    before: '.page-break-before',
+                    after: '.page-break-after',
+                    avoid: ['h1', 'h2', 'h3', 'pre', 'table', '.mermaid-diagram']
                 }
-                checkAddPage(20);
-                pdf.setFont(fontName, 'normal');
-                pdf.setFontSize(fontSize.h1);
-                const lines = splitText(element.textContent.trim(), contentWidth);
-                lines.forEach(line => {
-                    pdf.text(line, margin, yPosition);
-                    yPosition += lineHeight.h1;
-                });
-                yPosition += 5;
-            }
-            // H2
-            else if (tagName === 'h2') {
-                checkAddPage(15);
-                pdf.setFont(fontName, 'normal');
-                pdf.setFontSize(fontSize.h2);
-                const lines = splitText(element.textContent.trim(), contentWidth);
-                lines.forEach(line => {
-                    pdf.text(line, margin, yPosition);
-                    yPosition += lineHeight.h2;
-                });
-                yPosition += 4;
-            }
-            // H3
-            else if (tagName === 'h3') {
-                checkAddPage(12);
-                pdf.setFont(fontName, 'normal');
-                pdf.setFontSize(fontSize.h3);
-                const lines = splitText(element.textContent.trim(), contentWidth);
-                lines.forEach(line => {
-                    pdf.text(line, margin, yPosition);
-                    yPosition += lineHeight.h3;
-                });
-                yPosition += 3;
-            }
-            // Paragraph
-            else if (tagName === 'p') {
-                checkAddPage(10);
-                pdf.setFont(fontName, 'normal');
-                pdf.setFontSize(fontSize.normal);
-                const lines = splitText(element.textContent.trim(), contentWidth);
-                lines.forEach(line => {
-                    checkAddPage(lineHeight.normal + 2);
-                    pdf.text(line, margin, yPosition);
-                    yPosition += lineHeight.normal;
-                });
-                yPosition += 3;
-            }
-            // Code block
-            else if (tagName === 'pre') {
-                checkAddPage(15);
-                const code = element.textContent.trim();
-                pdf.setFont(fontName, 'normal');
-                pdf.setFontSize(fontSize.small);
-                pdf.setFillColor(246, 248, 250);
-                const codeLines = code.split('\n');
-                const codeHeight = codeLines.length * lineHeight.small + 4;
+            };
 
-                checkAddPage(codeHeight);
+            console.log('Generating PDF with filename:', filename);
 
-                pdf.rect(margin, yPosition - 2, contentWidth, codeHeight, 'F');
-                codeLines.forEach(line => {
-                    const splitLines = splitText(line || ' ', contentWidth - 4);
-                    splitLines.forEach(subLine => {
-                        pdf.text(subLine, margin + 2, yPosition);
-                        yPosition += lineHeight.small;
-                    });
-                });
-                yPosition += 5;
-            }
-            // Table
-            else if (tagName === 'table') {
-                const headers = [];
-                const rows = [];
+            // Generate and save PDF
+            await html2pdf().set(options).from(pdfContainer).save();
 
-                // Extract headers
-                const headerCells = element.querySelectorAll('thead th, tr:first-child th');
-                headerCells.forEach(cell => headers.push(cell.textContent.trim()));
-
-                // Extract rows
-                const bodyRows = element.querySelectorAll('tbody tr, tr:not(:first-child)');
-                bodyRows.forEach(row => {
-                    const rowData = [];
-                    row.querySelectorAll('td').forEach(cell => {
-                        rowData.push(cell.textContent.trim());
-                    });
-                    if (rowData.length > 0) rows.push(rowData);
-                });
-
-                checkAddPage(20);
-
-                pdf.autoTable({
-                    head: headers.length > 0 ? [headers] : undefined,
-                    body: rows,
-                    startY: yPosition,
-                    margin: { left: margin, right: margin },
-                    styles: {
-                        font: fontName,
-                        fontSize: fontSize.normal,
-                        cellPadding: 2,
-                        lineColor: [208, 215, 222],
-                        lineWidth: 0.1
-                    },
-                    headStyles: {
-                        fillColor: [246, 248, 250],
-                        textColor: [0, 0, 0],
-                        fontStyle: 'normal'
-                    },
-                    alternateRowStyles: {
-                        fillColor: [246, 248, 250]
-                    },
-                    tableLineColor: [208, 215, 222],
-                    tableLineWidth: 0.1
-                });
-
-                yPosition = pdf.lastAutoTable.finalY + 5;
-            }
-            // Mermaid diagram
-            else if (element.classList.contains('mermaid-diagram')) {
-                checkAddPage(80);
-
-                const svg = element.querySelector('svg');
-                if (svg) {
-                    try {
-                        // Create temporary container for diagram
-                        const diagramContainer = document.createElement('div');
-                        diagramContainer.style.position = 'absolute';
-                        diagramContainer.style.left = '-9999px';
-                        diagramContainer.style.background = 'white';
-                        diagramContainer.style.padding = '20px';
-                        diagramContainer.appendChild(svg.cloneNode(true));
-                        document.body.appendChild(diagramContainer);
-
-                        const canvas = await html2canvas(diagramContainer, {
-                            scale: 2,
-                            backgroundColor: '#ffffff'
-                        });
-
-                        document.body.removeChild(diagramContainer);
-
-                        // Check if canvas is valid
-                        if (canvas.width === 0 || canvas.height === 0) {
-                            console.warn('Invalid canvas size for diagram');
-                            return;
-                        }
-
-                        const imgData = canvas.toDataURL('image/png');
-                        const imgWidth = contentWidth;
-                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-                        // Ensure diagram fits on one page
-                        if (imgHeight > pageHeight - margin * 2) {
-                            const scale = (pageHeight - margin * 2) / imgHeight;
-                            const scaledWidth = imgWidth * scale;
-                            const scaledHeight = imgHeight * scale;
-                            checkAddPage(scaledHeight);
-                            pdf.addImage(imgData, 'PNG', margin, yPosition, scaledWidth, scaledHeight);
-                            yPosition += scaledHeight + 5;
-                        } else {
-                            checkAddPage(imgHeight);
-                            pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, imgHeight);
-                            yPosition += imgHeight + 5;
-                        }
-                    } catch (error) {
-                        console.error('Error rendering diagram:', error);
-                    }
-                }
-            }
-            // Blockquote
-            else if (tagName === 'blockquote') {
-                checkAddPage(10);
-                pdf.setFont(fontName, 'normal');
-                pdf.setFontSize(fontSize.normal);
-                pdf.setDrawColor(208, 215, 222);
-                pdf.setLineWidth(1);
-
-                const quoteText = element.textContent.trim();
-                const lines = splitText(quoteText, contentWidth - 10);
-                const quoteHeight = lines.length * lineHeight.normal;
-
-                checkAddPage(quoteHeight + 4);
-
-                pdf.line(margin + 2, yPosition - 2, margin + 2, yPosition + quoteHeight);
-                lines.forEach(line => {
-                    pdf.text(line, margin + 6, yPosition);
-                    yPosition += lineHeight.normal;
-                });
-                yPosition += 4;
-            }
-            // Lists
-            else if (tagName === 'ul' || tagName === 'ol') {
-                const items = element.querySelectorAll('li');
-                items.forEach((item, index) => {
-                    checkAddPage(8);
-                    pdf.setFont(fontName, 'normal');
-                    pdf.setFontSize(fontSize.normal);
-
-                    const bullet = tagName === 'ul' ? '•' : `${index + 1}.`;
-                    const text = item.textContent.trim();
-                    const lines = splitText(text, contentWidth - 10);
-
-                    pdf.text(bullet, margin + 2, yPosition);
-                    lines.forEach((line, lineIndex) => {
-                        pdf.text(line, margin + 8, yPosition + (lineIndex * lineHeight.normal));
-                    });
-                    yPosition += lines.length * lineHeight.normal + 2;
-                });
-                yPosition += 3;
-            }
+            console.log('PDF generated successfully with Cyrillic support');
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            throw error;
+        } finally {
+            // Clean up
+            document.body.removeChild(pdfContainer);
         }
-
-        const filename = metadata.title.replace(/[^a-z0-9а-яё]/gi, '_').toLowerCase() + '.pdf';
-        pdf.save(filename);
     }
 
-    // Generate DOCX using docx library
+// Generate DOCX using docx library
     async function generateDOCX() {
         const { Document, Packer, Paragraph, TextRun, HeadingLevel } = docx;
 
