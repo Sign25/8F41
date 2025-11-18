@@ -34,10 +34,10 @@
         linkify: true,
         typographer: true,
         highlight: function (str, lang) {
-            if (lang && hljs.getLanguage(lang)) {
+            if (lang && window.hljs && window.hljs.getLanguage(lang)) {
                 try {
                     return '<pre class="hljs"><code>' +
-                           hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                           window.hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
                            '</code></pre>';
                 } catch (__) {}
             }
