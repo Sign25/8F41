@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.4 - Удалены emoji для академического стиля
+// Версия 3.3.5 - Обновлённое академическое форматирование
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.4';
+    const APP_VERSION = '3.3.5';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -253,10 +253,23 @@
         };
     }
 
-    // Remove YAML front matter
+    // Remove YAML front matter and metadata blocks
     function removeFrontMatter(content) {
+        // Remove YAML front matter
         const frontMatterRegex = /^---\s*\n[\s\S]*?\n---\s*\n/;
-        return content.replace(frontMatterRegex, '');
+        content = content.replace(frontMatterRegex, '');
+
+        // Remove metadata header at the beginning (Проект, Документ, Дата, Версия, Статус)
+        // Match lines starting with **Key:** value, followed by optional ---
+        const metadataHeaderRegex = /^\s*(\*\*[^:]+:\*\*[^\n]*\n){2,}\s*(-{3,}\s*\n)?/;
+        content = content.replace(metadataHeaderRegex, '');
+
+        // Remove metadata footer at the end (Следующий раздел, Дата подготовки, Статус документа, Версия)
+        // Match multiple lines of **Key:** value at the end of document
+        const metadataFooterRegex = /\n\s*(\*\*[^:]+:\*\*[^\n]*\n)+\s*$/;
+        content = content.replace(metadataFooterRegex, '');
+
+        return content.trim();
     }
 
     // Process Mermaid diagrams
@@ -646,11 +659,11 @@
                     document: {
                         run: {
                             font: 'Times New Roman',
-                            size: 22  // 11pt (half-points)
+                            size: 28  // 14pt (half-points)
                         },
                         paragraph: {
                             spacing: {
-                                line: 276,  // 1.15 line spacing
+                                line: 240,  // 1.0 line spacing
                                 before: 0,
                                 after: 160
                             }
@@ -665,16 +678,16 @@
                         next: 'Normal',
                         run: {
                             font: 'Times New Roman',
-                            size: 22
+                            size: 28  // 14pt
                         },
                         paragraph: {
                             spacing: {
-                                line: 276,
+                                line: 240,  // 1.0 line spacing
                                 before: 0,
                                 after: 160
                             },
                             indent: {
-                                firstLine: 720  // 0.5 inch first line indent
+                                firstLine: 709  // 1.25 cm first line indent
                             },
                             alignment: AlignmentType.JUSTIFIED
                         }
@@ -703,10 +716,10 @@
                 properties: {
                     page: {
                         margin: {
-                            top: 1440,    // 1 inch
-                            right: 1440,
-                            bottom: 1440,
-                            left: 1440
+                            top: 567,     // 1 cm
+                            right: 567,   // 1 cm
+                            bottom: 567,  // 1 cm
+                            left: 1134    // 2 cm
                         }
                     }
                 },
@@ -778,15 +791,15 @@
                     style: 'Normal',
                     alignment: AlignmentType.JUSTIFIED,
                     indent: {
-                        firstLine: 720  // отступ первой строки
+                        firstLine: 709  // 1.25 cm first line indent
                     },
                     spacing: {
-                        line: 276,
+                        line: 240,  // 1.0 line spacing
                         after: 160
                     },
                     run: {
                         font: 'Times New Roman',
-                        size: 22
+                        size: 28  // 14pt
                     }
                 })
             );
@@ -828,12 +841,12 @@
                             new TextRun({
                                 text: `${bullet} ${li.textContent}`,
                                 font: 'Times New Roman',
-                                size: 22
+                                size: 28  // 14pt
                             })
                         ],
                         spacing: {
                             after: 100,
-                            line: 276
+                            line: 240  // 1.0 line spacing
                         },
                         indent: {
                             left: 720,
@@ -864,7 +877,7 @@
                                         new TextRun({
                                             text: cell.textContent,
                                             font: 'Times New Roman',
-                                            size: 20,  // 10pt для таблиц
+                                            size: 24,  // 12pt для таблиц
                                             bold: isHeaderCell
                                         })
                                     ],
