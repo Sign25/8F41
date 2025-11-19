@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.3 - Улучшенная поддержка Unicode ASCII art и отладка
+// Версия 3.3.4 - Удалены emoji для академического стиля
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.3';
+    const APP_VERSION = '3.3.4';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -18,17 +18,17 @@
         const svgbobModule = await import('https://unpkg.com/svgbob-wasm@1.0.0/svgbob_wasm.js');
         await svgbobModule.default();  // Initialize WASM
         svgbobRender = svgbobModule.render;
-        console.log('✓ svgbob-wasm loaded successfully from unpkg');
+        console.log('[OK] svgbob-wasm loaded successfully from unpkg');
     } catch (error) {
         console.warn('Failed to load svgbob-wasm from unpkg:', error.message);
         try {
             // Try esm.sh as fallback
             const svgbobModule = await import('https://esm.sh/svgbob-wasm@1.0.0');
             svgbobRender = svgbobModule.render;
-            console.log('✓ svgbob-wasm loaded successfully from esm.sh');
+            console.log('[OK] svgbob-wasm loaded successfully from esm.sh');
         } catch (error2) {
             console.warn('Failed to load svgbob-wasm from esm.sh:', error2.message);
-            console.warn('→ ASCII diagrams will be displayed as formatted code');
+            console.warn('[FALLBACK] ASCII diagrams will be displayed as formatted code');
         }
     }
 
@@ -103,12 +103,12 @@
 
         // Check if required libraries are loaded
         console.log('Libraries loaded:');
-        console.log('- markdown-it:', typeof markdownit !== 'undefined' ? '✓' : '✗');
-        console.log('- docx:', typeof docx !== 'undefined' ? '✓' : '✗');
-        console.log('- jsyaml:', typeof jsyaml !== 'undefined' ? '✓' : '✗');
-        console.log('- hljs:', typeof hljs !== 'undefined' ? '✓' : '✗');
-        console.log('- mermaid:', typeof mermaid !== 'undefined' ? '✓' : '✗');
-        console.log('- svgbob:', svgbobRender !== null ? '✓' : '✗');
+        console.log('- markdown-it:', typeof markdownit !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- docx:', typeof docx !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- jsyaml:', typeof jsyaml !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- hljs:', typeof hljs !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- mermaid:', typeof mermaid !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- svgbob:', svgbobRender !== null ? '[OK]' : '[FAIL]');
     }
 
     // Update version info in footer
@@ -415,7 +415,7 @@
                 preElement.style.whiteSpace = 'pre';
                 // Ensure Unicode characters render properly
                 block.style.fontFamily = 'inherit';
-                console.log(`→ Displaying ASCII diagram ${i + 1} as formatted code (Unicode-aware)`);
+                console.log(`[FALLBACK] Displaying ASCII diagram ${i + 1} as formatted code (Unicode-aware)`);
             }
         }
 
@@ -722,7 +722,7 @@
 
         console.log('Saving file:', filename);
         saveAs(blob, filename);
-        console.log('✓ DOCX generated successfully:', filename);
+        console.log('[OK] DOCX generated successfully:', filename);
     }
 
     // Convert HTML element to DOCX element(s)
@@ -957,7 +957,7 @@
                         }
                     })
                 );
-                console.log('✓ ASCII diagram inserted as image');
+                console.log('[OK] ASCII diagram inserted as image');
             } catch (error) {
                 console.error('Failed to convert ASCII diagram to image:', error);
                 // Fallback to text
@@ -1029,7 +1029,7 @@
                     }
                 })
             );
-            console.log(`→ ASCII diagram inserted as formatted code (${lines.length} lines, Unicode-aware)`);
+            console.log(`[FALLBACK] ASCII diagram inserted as formatted code (${lines.length} lines, Unicode-aware)`);
         }
         // Mermaid diagram SVG - вставка как изображение
         else if (element.classList.contains('mermaid-diagram-svg')) {
@@ -1056,7 +1056,7 @@
                         }
                     })
                 );
-                console.log('✓ Mermaid diagram inserted as image');
+                console.log('[OK] Mermaid diagram inserted as image');
             } catch (error) {
                 console.error('Failed to convert Mermaid diagram to image:', error);
                 elements.push(
