@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.7 - Исправление BorderStyle
+// Версия 3.3.8 - Исправление пропорций Mermaid диаграмм
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.7';
+    const APP_VERSION = '3.3.8';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -396,7 +396,7 @@
                         const preElement = block.closest('pre');
                         if (preElement) {
                             preElement.replaceWith(svgDiv);
-                            console.log(`✓ Successfully converted ASCII diagram ${i + 1} to SVG`);
+                            console.log(`[OK] Successfully converted ASCII diagram ${i + 1} to SVG`);
                             continue; // Successfully converted, move to next
                         }
                     } else {
@@ -516,13 +516,13 @@
                     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 }
 
-                // Get dimensions and increase quality with 2x scale
+                // Get dimensions and increase quality with 3x scale for near-vector quality
                 const bbox = svgNode.getBoundingClientRect();
                 let width = parseInt(svgClone.getAttribute('width')) || bbox.width || 800;
                 let height = parseInt(svgClone.getAttribute('height')) || bbox.height || 600;
 
-                // Scale factor for better quality
-                const scale = 2;
+                // Scale factor for better quality (3x for near-vector quality)
+                const scale = 3;
                 const scaledWidth = width * scale;
                 const scaledHeight = height * scale;
 
@@ -566,8 +566,8 @@
                             bytes[i] = binaryString.charCodeAt(i);
                         }
 
-                        console.log('SVG converted to PNG (2x quality), size:', bytes.length, 'bytes');
-                        resolve(bytes.buffer);
+                        console.log(`SVG converted to PNG (3x quality), size: ${bytes.length} bytes, dimensions: ${width}x${height}`);
+                        resolve({ buffer: bytes.buffer, width: width, height: height });
                     } catch (error) {
                         console.error('Canvas conversion error:', error);
                         reject(error);
@@ -989,8 +989,8 @@
         else if (element.classList.contains('ascii-diagram-svg')) {
             console.log('Converting ASCII diagram SVG to PNG...');
             try {
-                const imageBuffer = await svgToPng(element);
-                const imageData = new Uint8Array(imageBuffer);
+                const { buffer, width, height } = await svgToPng(element);
+                const imageData = new Uint8Array(buffer);
 
                 elements.push(
                     new Paragraph({
@@ -998,8 +998,8 @@
                             new ImageRun({
                                 data: imageData,
                                 transformation: {
-                                    width: 600,
-                                    height: 400
+                                    width: width,
+                                    height: height
                                 }
                             })
                         ],
@@ -1010,7 +1010,7 @@
                         }
                     })
                 );
-                console.log('[OK] ASCII diagram inserted as image');
+                console.log(`[OK] ASCII diagram inserted as image (${width}x${height})`);
             } catch (error) {
                 console.error('Failed to convert ASCII diagram to image:', error);
                 // Fallback to text
@@ -1088,8 +1088,8 @@
         else if (element.classList.contains('mermaid-diagram-svg')) {
             console.log('Converting Mermaid diagram SVG to PNG...');
             try {
-                const imageBuffer = await svgToPng(element);
-                const imageData = new Uint8Array(imageBuffer);
+                const { buffer, width, height } = await svgToPng(element);
+                const imageData = new Uint8Array(buffer);
 
                 elements.push(
                     new Paragraph({
@@ -1097,8 +1097,8 @@
                             new ImageRun({
                                 data: imageData,
                                 transformation: {
-                                    width: 600,
-                                    height: 400
+                                    width: width,
+                                    height: height
                                 }
                             })
                         ],
@@ -1109,7 +1109,7 @@
                         }
                     })
                 );
-                console.log('[OK] Mermaid diagram inserted as image');
+                console.log(`[OK] Mermaid diagram inserted as image (${width}x${height})`);
             } catch (error) {
                 console.error('Failed to convert Mermaid diagram to image:', error);
                 elements.push(
