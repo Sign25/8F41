@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.5 - Обновлённое академическое форматирование
+// Версия 3.3.6 - Корпоративный стиль таблиц
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.5';
+    const APP_VERSION = '3.3.6';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -516,10 +516,15 @@
                     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 }
 
-                // Get dimensions
+                // Get dimensions and increase quality with 2x scale
                 const bbox = svgNode.getBoundingClientRect();
                 let width = parseInt(svgClone.getAttribute('width')) || bbox.width || 800;
                 let height = parseInt(svgClone.getAttribute('height')) || bbox.height || 600;
+
+                // Scale factor for better quality
+                const scale = 2;
+                const scaledWidth = width * scale;
+                const scaledHeight = height * scale;
 
                 // Set explicit dimensions if not present
                 svgClone.setAttribute('width', width);
@@ -536,15 +541,18 @@
 
                 img.onload = function() {
                     try {
-                        // Create canvas with proper dimensions
+                        // Create canvas with scaled dimensions for higher quality
                         const canvas = document.createElement('canvas');
-                        canvas.width = width;
-                        canvas.height = height;
+                        canvas.width = scaledWidth;
+                        canvas.height = scaledHeight;
 
                         const ctx = canvas.getContext('2d');
                         // White background
                         ctx.fillStyle = 'white';
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        // Draw scaled image for better quality
+                        ctx.scale(scale, scale);
                         ctx.drawImage(img, 0, 0);
 
                         // Convert to PNG using toDataURL instead of toBlob to avoid CORS
@@ -558,7 +566,7 @@
                             bytes[i] = binaryString.charCodeAt(i);
                         }
 
-                        console.log('SVG converted to PNG, size:', bytes.length, 'bytes');
+                        console.log('SVG converted to PNG (2x quality), size:', bytes.length, 'bytes');
                         resolve(bytes.buffer);
                     } catch (error) {
                         console.error('Canvas conversion error:', error);
@@ -834,7 +842,7 @@
         else if (tagName === 'ul' || tagName === 'ol') {
             const listItems = element.querySelectorAll('li');
             listItems.forEach((li, index) => {
-                const bullet = tagName === 'ul' ? '•' : `${index + 1}.`;
+                const bullet = tagName === 'ul' ? '-' : `${index + 1}.`;
                 elements.push(
                     new Paragraph({
                         children: [
@@ -857,7 +865,7 @@
                 );
             });
         }
-        // Tables - академический минималистичный стиль
+        // Tables - корпоративный стиль из style.docx
         else if (tagName === 'table') {
             const rows = element.querySelectorAll('tr');
             const tableRows = [];
@@ -865,10 +873,22 @@
             rows.forEach((tr, rowIndex) => {
                 const cells = tr.querySelectorAll('th, td');
                 const tableCells = [];
-                const isHeader = rowIndex === 0 || tr.querySelector('th') !== null;
+                const isHeaderRow = rowIndex === 0 || tr.querySelector('th') !== null;
 
                 cells.forEach(cell => {
                     const isHeaderCell = cell.tagName.toLowerCase() === 'th';
+
+                    // Определяем цвет фона строки
+                    let rowShading = 'FFFFFF';  // Белый по умолчанию
+                    if (isHeaderRow) {
+                        rowShading = '003087';  // Тёмно-синий для заголовка
+                    } else if (rowIndex % 2 === 0) {
+                        rowShading = 'F5F5F6';  // Светло-серый для чётных строк
+                    }
+
+                    // Определяем цвет текста
+                    const textColor = isHeaderRow ? 'FFFFFF' : '000000';
+
                     tableCells.push(
                         new TableCell({
                             children: [
@@ -878,27 +898,47 @@
                                             text: cell.textContent,
                                             font: 'Times New Roman',
                                             size: 24,  // 12pt для таблиц
-                                            bold: isHeaderCell
+                                            bold: isHeaderRow,
+                                            color: textColor
                                         })
                                     ],
-                                    alignment: AlignmentType.LEFT
+                                    alignment: isHeaderRow ? AlignmentType.CENTER : AlignmentType.LEFT
                                 })
                             ],
                             width: {
                                 size: 100 / cells.length,
                                 type: WidthType.PERCENTAGE
                             },
+                            shading: {
+                                fill: rowShading
+                            },
                             margins: {
-                                top: 100,
-                                bottom: 100,
-                                left: 100,
-                                right: 100
+                                top: isHeaderRow ? 120 : 85,    // Больше отступ для заголовка
+                                bottom: isHeaderRow ? 120 : 85,
+                                left: 115,   // ~6-8pt
+                                right: 115
+                            },
+                            borders: {
+                                top: { style: BorderStyle.NONE, size: 0 },
+                                bottom: {
+                                    style: isHeaderRow ? BorderStyle.SINGLE : BorderStyle.SINGLE,
+                                    size: isHeaderRow ? 10 : 3,  // Толще линия под заголовком
+                                    color: isHeaderRow ? 'FFFFFF' : 'E0E0E0'  // Белая под заголовком, светло-серая между строками
+                                },
+                                left: { style: BorderStyle.NONE, size: 0 },
+                                right: { style: BorderStyle.NONE, size: 0 }
                             }
                         })
                     );
                 });
 
-                tableRows.push(new TableRow({ children: tableCells }));
+                tableRows.push(new TableRow({
+                    children: tableCells,
+                    height: {
+                        value: isHeaderRow ? 500 : 350,  // Заголовок выше обычных строк
+                        rule: 'atLeast'
+                    }
+                }));
             });
 
             const { BorderStyle } = docx;
@@ -910,11 +950,12 @@
                         type: WidthType.PERCENTAGE
                     },
                     borders: {
-                        top: { style: BorderStyle.SINGLE, size: 6, color: '000000' },
-                        bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000' },
+                        // Убираем все внешние границы таблицы
+                        top: { style: BorderStyle.NONE, size: 0 },
+                        bottom: { style: BorderStyle.NONE, size: 0 },
                         left: { style: BorderStyle.NONE, size: 0 },
                         right: { style: BorderStyle.NONE, size: 0 },
-                        insideHorizontal: { style: BorderStyle.SINGLE, size: 3, color: 'CCCCCC' },
+                        insideHorizontal: { style: BorderStyle.NONE, size: 0 },  // Границы управляются на уровне ячеек
                         insideVertical: { style: BorderStyle.NONE, size: 0 }
                     }
                 })
