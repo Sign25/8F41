@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.6 - Корпоративный стиль таблиц
+// Версия 3.3.7 - Исправление BorderStyle
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.6';
+    const APP_VERSION = '3.3.7';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -748,7 +748,7 @@
 
     // Convert HTML element to DOCX element(s)
     async function convertElementToDOCX(element) {
-        const { Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, ImageRun, Media } = docx;
+        const { Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, ImageRun, Media, BorderStyle } = docx;
         const tagName = element.tagName.toLowerCase();
         const elements = [];
 
@@ -941,7 +941,6 @@
                 }));
             });
 
-            const { BorderStyle } = docx;
             elements.push(
                 new Table({
                     rows: tableRows,
