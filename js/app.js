@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.2.0 - DOCX с академическим форматированием + SVG диаграммы как изображения
+// Версия 3.2.1 - Исправления конвертации диаграмм и стилей таблиц
 
 (function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.2.0';
+    const APP_VERSION = '3.2.1';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -305,11 +305,6 @@
 
     // Process ASCII art diagrams
     async function processAsciiArtDiagrams() {
-        if (typeof window.AsciiToSVG === 'undefined') {
-            console.warn('AsciiToSVG library not loaded');
-            return;
-        }
-
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = parsedHtml;
 
@@ -332,27 +327,48 @@
 
             console.log(`Processing ASCII diagram ${i + 1}:`, asciiCode.substring(0, 50));
 
-            try {
-                // Convert ASCII art to SVG
-                const svg = window.AsciiToSVG.diagramToSVG(asciiCode, {
-                    backdrop: false,
-                    disableText: false,
-                    showGrid: false
-                });
+            // Try to convert to SVG if library is available
+            if (typeof window.AsciiToSVG !== 'undefined' && typeof window.AsciiToSVG.diagramToSVG === 'function') {
+                try {
+                    const svg = window.AsciiToSVG.diagramToSVG(asciiCode, {
+                        backdrop: false,
+                        disableText: false,
+                        showGrid: false
+                    });
 
-                const svgDiv = document.createElement('div');
-                svgDiv.className = 'ascii-diagram-svg';
-                svgDiv.innerHTML = svg;
+                    if (svg && svg.length > 0) {
+                        const svgDiv = document.createElement('div');
+                        svgDiv.className = 'ascii-diagram-svg';
+                        svgDiv.innerHTML = svg;
 
-                // Replace the code block's parent <pre> element
-                const preElement = block.closest('pre');
-                if (preElement) {
-                    preElement.replaceWith(svgDiv);
-                    console.log(`Replaced <pre> with SVG diagram ${i + 1}`);
+                        // Replace the code block's parent <pre> element
+                        const preElement = block.closest('pre');
+                        if (preElement) {
+                            preElement.replaceWith(svgDiv);
+                            console.log(`✓ Converted ASCII diagram ${i + 1} to SVG`);
+                            continue; // Successfully converted, move to next
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Failed to render ASCII diagram ${i + 1}:`, error);
+                    // Fall through to display as formatted code
                 }
-            } catch (error) {
-                console.error(`Failed to render ASCII diagram ${i + 1}:`, error);
-                // Keep the original code block if rendering fails
+            }
+
+            // Fallback: display as formatted code block (no conversion)
+            const preElement = block.closest('pre');
+            if (preElement) {
+                // Add special class for ASCII diagrams that will be styled differently
+                preElement.classList.add('ascii-diagram-code');
+                preElement.style.fontFamily = 'Monaco, Courier, monospace';
+                preElement.style.fontSize = '12px';
+                preElement.style.lineHeight = '1.2';
+                preElement.style.backgroundColor = '#f8f8f8';
+                preElement.style.padding = '15px';
+                preElement.style.border = '1px solid #ddd';
+                preElement.style.borderRadius = '4px';
+                preElement.style.overflowX = 'auto';
+                console.log(`→ Displaying ASCII diagram ${i + 1} as formatted code`);
             }
         }
 
@@ -420,20 +436,48 @@
     async function svgToPng(svgElement) {
         return new Promise((resolve, reject) => {
             try {
-                // Get SVG content
-                const svgString = svgElement.innerHTML;
+                // Get the SVG element (either the div contains SVG or is SVG itself)
+                let svgNode = svgElement.querySelector('svg');
+                if (!svgNode && svgElement.tagName.toLowerCase() === 'svg') {
+                    svgNode = svgElement;
+                }
+
+                if (!svgNode) {
+                    reject(new Error('No SVG element found'));
+                    return;
+                }
+
+                // Clone and get SVG string
+                const svgClone = svgNode.cloneNode(true);
+
+                // Ensure SVG has proper attributes
+                if (!svgClone.hasAttribute('xmlns')) {
+                    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                }
+
+                // Get dimensions
+                const bbox = svgNode.getBoundingClientRect();
+                let width = parseInt(svgClone.getAttribute('width')) || bbox.width || 800;
+                let height = parseInt(svgClone.getAttribute('height')) || bbox.height || 600;
+
+                // Set explicit dimensions if not present
+                svgClone.setAttribute('width', width);
+                svgClone.setAttribute('height', height);
+
+                const svgString = new XMLSerializer().serializeToString(svgClone);
                 const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
                 const url = URL.createObjectURL(svgBlob);
 
                 // Create image
                 const img = new Image();
                 img.onload = function() {
-                    // Create canvas
+                    // Create canvas with proper dimensions
                     const canvas = document.createElement('canvas');
-                    canvas.width = img.width || 800;
-                    canvas.height = img.height || 600;
+                    canvas.width = width;
+                    canvas.height = height;
 
                     const ctx = canvas.getContext('2d');
+                    // White background
                     ctx.fillStyle = 'white';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(img, 0, 0);
@@ -442,17 +486,22 @@
                     canvas.toBlob((blob) => {
                         URL.revokeObjectURL(url);
                         const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
+                        reader.onloadend = () => {
+                            console.log('SVG converted to PNG, size:', reader.result.byteLength, 'bytes');
+                            resolve(reader.result);
+                        };
                         reader.onerror = reject;
                         reader.readAsArrayBuffer(blob);
                     }, 'image/png');
                 };
-                img.onerror = () => {
+                img.onerror = (e) => {
                     URL.revokeObjectURL(url);
-                    reject(new Error('Failed to load SVG'));
+                    console.error('Failed to load SVG image:', e);
+                    reject(new Error('Failed to load SVG image'));
                 };
                 img.src = url;
             } catch (error) {
+                console.error('svgToPng error:', error);
                 reject(error);
             }
         });
@@ -761,6 +810,7 @@
                 tableRows.push(new TableRow({ children: tableCells }));
             });
 
+            const { BorderStyle } = docx;
             elements.push(
                 new Table({
                     rows: tableRows,
@@ -769,12 +819,12 @@
                         type: WidthType.PERCENTAGE
                     },
                     borders: {
-                        top: { style: 'single', size: 1, color: '000000' },
-                        bottom: { style: 'single', size: 1, color: '000000' },
-                        left: { style: 'none' },
-                        right: { style: 'none' },
-                        insideHorizontal: { style: 'single', size: 1, color: 'CCCCCC' },
-                        insideVertical: { style: 'none' }
+                        top: { style: BorderStyle.SINGLE, size: 6, color: '000000' },
+                        bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000' },
+                        left: { style: BorderStyle.NONE, size: 0 },
+                        right: { style: BorderStyle.NONE, size: 0 },
+                        insideHorizontal: { style: BorderStyle.SINGLE, size: 3, color: 'CCCCCC' },
+                        insideVertical: { style: BorderStyle.NONE, size: 0 }
                     }
                 })
             );
@@ -804,7 +854,7 @@
                 })
             );
         }
-        // ASCII diagram SVG - вставка как изображение
+        // ASCII diagram as SVG - вставка как изображение
         else if (element.classList.contains('ascii-diagram-svg')) {
             try {
                 const imageBuffer = await svgToPng(element);
@@ -828,21 +878,66 @@
                         }
                     })
                 );
+                console.log('✓ ASCII diagram inserted as image');
             } catch (error) {
                 console.error('Failed to convert ASCII diagram to image:', error);
+                // Fallback to text
+                const asciiText = element.textContent || '[ASCII Diagram - ошибка конвертации]';
                 elements.push(
                     new Paragraph({
-                        text: '[ASCII Diagram - ошибка конвертации]',
+                        children: [
+                            new TextRun({
+                                text: asciiText,
+                                font: 'Courier New',
+                                size: 18
+                            })
+                        ],
                         spacing: {
                             before: 240,
                             after: 240
                         },
                         alignment: AlignmentType.CENTER,
-                        italics: true,
-                        color: '999999'
+                        shading: {
+                            fill: 'F5F5F5'
+                        }
                     })
                 );
             }
+        }
+        // ASCII diagram as code (fallback) - вставка как моноширинный текст
+        else if (element.classList.contains('ascii-diagram-code')) {
+            const codeElement = element.querySelector('code');
+            const asciiText = codeElement ? codeElement.textContent : element.textContent;
+
+            elements.push(
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: asciiText,
+                            font: 'Courier New',
+                            size: 18  // 9pt для ASCII
+                        })
+                    ],
+                    spacing: {
+                        before: 240,
+                        after: 240
+                    },
+                    indent: {
+                        left: 360,
+                        right: 360
+                    },
+                    shading: {
+                        fill: 'F8F8F8'
+                    },
+                    border: {
+                        top: { style: BorderStyle.SINGLE, size: 1, color: 'DDDDDD' },
+                        bottom: { style: BorderStyle.SINGLE, size: 1, color: 'DDDDDD' },
+                        left: { style: BorderStyle.SINGLE, size: 1, color: 'DDDDDD' },
+                        right: { style: BorderStyle.SINGLE, size: 1, color: 'DDDDDD' }
+                    }
+                })
+            );
+            console.log('→ ASCII diagram inserted as formatted code');
         }
         // Mermaid diagram SVG - вставка как изображение
         else if (element.classList.contains('mermaid-diagram-svg')) {
