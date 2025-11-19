@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.3 - Улучшенная поддержка Unicode ASCII art и отладка
+// Версия 3.3.5 - Обновлённое академическое форматирование
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.3';
+    const APP_VERSION = '3.3.5';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -18,17 +18,17 @@
         const svgbobModule = await import('https://unpkg.com/svgbob-wasm@1.0.0/svgbob_wasm.js');
         await svgbobModule.default();  // Initialize WASM
         svgbobRender = svgbobModule.render;
-        console.log('✓ svgbob-wasm loaded successfully from unpkg');
+        console.log('[OK] svgbob-wasm loaded successfully from unpkg');
     } catch (error) {
         console.warn('Failed to load svgbob-wasm from unpkg:', error.message);
         try {
             // Try esm.sh as fallback
             const svgbobModule = await import('https://esm.sh/svgbob-wasm@1.0.0');
             svgbobRender = svgbobModule.render;
-            console.log('✓ svgbob-wasm loaded successfully from esm.sh');
+            console.log('[OK] svgbob-wasm loaded successfully from esm.sh');
         } catch (error2) {
             console.warn('Failed to load svgbob-wasm from esm.sh:', error2.message);
-            console.warn('→ ASCII diagrams will be displayed as formatted code');
+            console.warn('[FALLBACK] ASCII diagrams will be displayed as formatted code');
         }
     }
 
@@ -103,12 +103,12 @@
 
         // Check if required libraries are loaded
         console.log('Libraries loaded:');
-        console.log('- markdown-it:', typeof markdownit !== 'undefined' ? '✓' : '✗');
-        console.log('- docx:', typeof docx !== 'undefined' ? '✓' : '✗');
-        console.log('- jsyaml:', typeof jsyaml !== 'undefined' ? '✓' : '✗');
-        console.log('- hljs:', typeof hljs !== 'undefined' ? '✓' : '✗');
-        console.log('- mermaid:', typeof mermaid !== 'undefined' ? '✓' : '✗');
-        console.log('- svgbob:', svgbobRender !== null ? '✓' : '✗');
+        console.log('- markdown-it:', typeof markdownit !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- docx:', typeof docx !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- jsyaml:', typeof jsyaml !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- hljs:', typeof hljs !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- mermaid:', typeof mermaid !== 'undefined' ? '[OK]' : '[FAIL]');
+        console.log('- svgbob:', svgbobRender !== null ? '[OK]' : '[FAIL]');
     }
 
     // Update version info in footer
@@ -253,10 +253,23 @@
         };
     }
 
-    // Remove YAML front matter
+    // Remove YAML front matter and metadata blocks
     function removeFrontMatter(content) {
+        // Remove YAML front matter
         const frontMatterRegex = /^---\s*\n[\s\S]*?\n---\s*\n/;
-        return content.replace(frontMatterRegex, '');
+        content = content.replace(frontMatterRegex, '');
+
+        // Remove metadata header at the beginning (Проект, Документ, Дата, Версия, Статус)
+        // Match lines starting with **Key:** value, followed by optional ---
+        const metadataHeaderRegex = /^\s*(\*\*[^:]+:\*\*[^\n]*\n){2,}\s*(-{3,}\s*\n)?/;
+        content = content.replace(metadataHeaderRegex, '');
+
+        // Remove metadata footer at the end (Следующий раздел, Дата подготовки, Статус документа, Версия)
+        // Match multiple lines of **Key:** value at the end of document
+        const metadataFooterRegex = /\n\s*(\*\*[^:]+:\*\*[^\n]*\n)+\s*$/;
+        content = content.replace(metadataFooterRegex, '');
+
+        return content.trim();
     }
 
     // Process Mermaid diagrams
@@ -415,7 +428,7 @@
                 preElement.style.whiteSpace = 'pre';
                 // Ensure Unicode characters render properly
                 block.style.fontFamily = 'inherit';
-                console.log(`→ Displaying ASCII diagram ${i + 1} as formatted code (Unicode-aware)`);
+                console.log(`[FALLBACK] Displaying ASCII diagram ${i + 1} as formatted code (Unicode-aware)`);
             }
         }
 
@@ -646,11 +659,11 @@
                     document: {
                         run: {
                             font: 'Times New Roman',
-                            size: 22  // 11pt (half-points)
+                            size: 28  // 14pt (half-points)
                         },
                         paragraph: {
                             spacing: {
-                                line: 276,  // 1.15 line spacing
+                                line: 240,  // 1.0 line spacing
                                 before: 0,
                                 after: 160
                             }
@@ -665,16 +678,16 @@
                         next: 'Normal',
                         run: {
                             font: 'Times New Roman',
-                            size: 22
+                            size: 28  // 14pt
                         },
                         paragraph: {
                             spacing: {
-                                line: 276,
+                                line: 240,  // 1.0 line spacing
                                 before: 0,
                                 after: 160
                             },
                             indent: {
-                                firstLine: 720  // 0.5 inch first line indent
+                                firstLine: 709  // 1.25 cm first line indent
                             },
                             alignment: AlignmentType.JUSTIFIED
                         }
@@ -703,10 +716,10 @@
                 properties: {
                     page: {
                         margin: {
-                            top: 1440,    // 1 inch
-                            right: 1440,
-                            bottom: 1440,
-                            left: 1440
+                            top: 567,     // 1 cm
+                            right: 567,   // 1 cm
+                            bottom: 567,  // 1 cm
+                            left: 1134    // 2 cm
                         }
                     }
                 },
@@ -722,7 +735,7 @@
 
         console.log('Saving file:', filename);
         saveAs(blob, filename);
-        console.log('✓ DOCX generated successfully:', filename);
+        console.log('[OK] DOCX generated successfully:', filename);
     }
 
     // Convert HTML element to DOCX element(s)
@@ -778,15 +791,15 @@
                     style: 'Normal',
                     alignment: AlignmentType.JUSTIFIED,
                     indent: {
-                        firstLine: 720  // отступ первой строки
+                        firstLine: 709  // 1.25 cm first line indent
                     },
                     spacing: {
-                        line: 276,
+                        line: 240,  // 1.0 line spacing
                         after: 160
                     },
                     run: {
                         font: 'Times New Roman',
-                        size: 22
+                        size: 28  // 14pt
                     }
                 })
             );
@@ -828,12 +841,12 @@
                             new TextRun({
                                 text: `${bullet} ${li.textContent}`,
                                 font: 'Times New Roman',
-                                size: 22
+                                size: 28  // 14pt
                             })
                         ],
                         spacing: {
                             after: 100,
-                            line: 276
+                            line: 240  // 1.0 line spacing
                         },
                         indent: {
                             left: 720,
@@ -864,7 +877,7 @@
                                         new TextRun({
                                             text: cell.textContent,
                                             font: 'Times New Roman',
-                                            size: 20,  // 10pt для таблиц
+                                            size: 24,  // 12pt для таблиц
                                             bold: isHeaderCell
                                         })
                                     ],
@@ -957,7 +970,7 @@
                         }
                     })
                 );
-                console.log('✓ ASCII diagram inserted as image');
+                console.log('[OK] ASCII diagram inserted as image');
             } catch (error) {
                 console.error('Failed to convert ASCII diagram to image:', error);
                 // Fallback to text
@@ -1029,7 +1042,7 @@
                     }
                 })
             );
-            console.log(`→ ASCII diagram inserted as formatted code (${lines.length} lines, Unicode-aware)`);
+            console.log(`[FALLBACK] ASCII diagram inserted as formatted code (${lines.length} lines, Unicode-aware)`);
         }
         // Mermaid diagram SVG - вставка как изображение
         else if (element.classList.contains('mermaid-diagram-svg')) {
@@ -1056,7 +1069,7 @@
                         }
                     })
                 );
-                console.log('✓ Mermaid diagram inserted as image');
+                console.log('[OK] Mermaid diagram inserted as image');
             } catch (error) {
                 console.error('Failed to convert Mermaid diagram to image:', error);
                 elements.push(
