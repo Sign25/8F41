@@ -64,6 +64,14 @@
         setupEventListeners();
         updateVersionInfo();
         console.log(`${APP_NAME} v${APP_VERSION} (Build: ${BUILD_DATE})`);
+
+        // Check if required libraries are loaded
+        console.log('Libraries loaded:');
+        console.log('- markdown-it:', typeof markdownit !== 'undefined' ? '✓' : '✗');
+        console.log('- docx:', typeof docx !== 'undefined' ? '✓' : '✗');
+        console.log('- jsyaml:', typeof jsyaml !== 'undefined' ? '✓' : '✗');
+        console.log('- hljs:', typeof hljs !== 'undefined' ? '✓' : '✗');
+        console.log('- AsciiToSVG:', typeof window.AsciiToSVG !== 'undefined' ? '✓' : '✗');
     }
 
     // Update version info in footer
@@ -326,6 +334,11 @@
 
     // Generate DOCX using docx library
     async function generateDOCX() {
+        // Check if docx library is loaded
+        if (typeof docx === 'undefined') {
+            throw new Error('Библиотека docx.js не загружена. Обновите страницу.');
+        }
+
         const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, WidthType } = docx;
 
         const children = [];
