@@ -56,7 +56,7 @@
 ### Библиотеки (загружаются из CDN)
 - **markdown-it** v13.0.2 - парсинг Markdown
 - **Highlight.js** v11.9.0 - подсветка синтаксиса кода
-- **docx.js** v8.5.0 - генерация DOCX файлов
+- **docx.js** v7.8.2 - генерация DOCX файлов
 - **file-saver** v2.0.5 - сохранение файлов
 - **js-yaml** v4.1.0 - парсинг YAML front matter
 - **markdeep-diagram.js** (из aasvg) - преобразование ASCII art в SVG
