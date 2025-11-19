@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.1 - Исправление загрузки svgbob-wasm и генерации DOCX
+// Версия 3.3.2 - Исправление CORS ошибки при SVG→PNG конвертации
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.1';
+    const APP_VERSION = '3.3.2';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -483,41 +483,52 @@
                 svgClone.setAttribute('height', height);
 
                 const svgString = new XMLSerializer().serializeToString(svgClone);
-                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const url = URL.createObjectURL(svgBlob);
+
+                // Use data URI instead of blob URL to avoid CORS issues
+                const svgDataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
 
                 // Create image
                 const img = new Image();
+                img.crossOrigin = 'anonymous';  // Try to avoid CORS issues
+
                 img.onload = function() {
-                    // Create canvas with proper dimensions
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
+                    try {
+                        // Create canvas with proper dimensions
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
 
-                    const ctx = canvas.getContext('2d');
-                    // White background
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0);
+                        const ctx = canvas.getContext('2d');
+                        // White background
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0);
 
-                    // Convert to PNG
-                    canvas.toBlob((blob) => {
-                        URL.revokeObjectURL(url);
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                            console.log('SVG converted to PNG, size:', reader.result.byteLength, 'bytes');
-                            resolve(reader.result);
-                        };
-                        reader.onerror = reject;
-                        reader.readAsArrayBuffer(blob);
-                    }, 'image/png');
+                        // Convert to PNG using toDataURL instead of toBlob to avoid CORS
+                        const pngDataUrl = canvas.toDataURL('image/png');
+
+                        // Convert data URL to ArrayBuffer
+                        const base64 = pngDataUrl.split(',')[1];
+                        const binaryString = atob(base64);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+
+                        console.log('SVG converted to PNG, size:', bytes.length, 'bytes');
+                        resolve(bytes.buffer);
+                    } catch (error) {
+                        console.error('Canvas conversion error:', error);
+                        reject(error);
+                    }
                 };
+
                 img.onerror = (e) => {
-                    URL.revokeObjectURL(url);
                     console.error('Failed to load SVG image:', e);
                     reject(new Error('Failed to load SVG image'));
                 };
-                img.src = url;
+
+                img.src = svgDataUri;
             } catch (error) {
                 console.error('svgToPng error:', error);
                 reject(error);
