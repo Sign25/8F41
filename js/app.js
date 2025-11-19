@@ -1,6 +1,6 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.10 - Отладка размеров Mermaid
+// Версия 3.3.10 - Исправление SVG размеров и svgbob WASM
 
 (async function() {
     'use strict';
@@ -30,6 +30,10 @@
         try {
             // Try esm.sh as fallback
             const svgbobModule = await import('https://esm.sh/svgbob-wasm@1.0.0');
+            // Initialize WASM for esm.sh as well
+            if (svgbobModule.default && typeof svgbobModule.default === 'function') {
+                await svgbobModule.default();
+            }
             svgbobRender = svgbobModule.render;
             console.log('[OK] svgbob-wasm loaded successfully from esm.sh');
         } catch (error2) {
