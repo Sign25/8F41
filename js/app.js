@@ -1,18 +1,14 @@
-// Markdown Document Converter - Client-Side Application
+// Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
+// Версия 3.0.0 - только DOCX генерация с поддержкой ASCII Art
 
 (function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '2.1.0';
-    const APP_NAME = 'Markdown Document Converter';
-    const BUILD_DATE = '2024-11-18';
-
-    // API Configuration - автоматическое определение URL
-    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:5000'  // Локальная разработка
-        : window.location.origin;  // Продакшн (тот же домен)
+    const APP_VERSION = '3.0.0';
+    const APP_NAME = 'Markdown to Word Converter';
+    const BUILD_DATE = '2025-11-19';
 
     // DOM Elements
     const uploadArea = document.getElementById('uploadArea');
@@ -30,7 +26,6 @@
     const errorSection = document.getElementById('errorSection');
     const errorMessage = document.getElementById('errorMessage');
     const retryBtn = document.getElementById('retryBtn');
-    const hiddenPreview = document.getElementById('hiddenPreview');
 
     // State
     let selectedFile = null;
@@ -47,9 +42,9 @@
         highlight: function (str, lang) {
             const langClass = lang ? ` class="language-${lang}"` : '';
 
-            // For Mermaid diagrams, just return code block with language class
-            if (lang === 'mermaid') {
-                return `<pre class="hljs"><code${langClass}>${md.utils.escapeHtml(str)}</code></pre>`;
+            // For ASCII art diagrams, preserve as-is
+            if (lang === 'ascii' || lang === 'ascii-art' || lang === 'diagram') {
+                return `<pre class="ascii-diagram"><code${langClass}>${md.utils.escapeHtml(str)}</code></pre>`;
             }
 
             // For other languages, try to highlight
@@ -64,19 +59,11 @@
         }
     }).enable('table');
 
-    // Initialize Mermaid
-    if (typeof mermaid !== 'undefined') {
-        mermaid.initialize({
-            startOnLoad: false,
-            theme: 'default',
-            securityLevel: 'loose'
-        });
-    }
-
     // Initialize
     function init() {
         setupEventListeners();
         updateVersionInfo();
+        console.log(`${APP_NAME} v${APP_VERSION} (Build: ${BUILD_DATE})`);
     }
 
     // Update version info in footer
@@ -85,18 +72,15 @@
         if (versionEl) {
             versionEl.textContent = `${APP_NAME} v${APP_VERSION}`;
         }
-        console.log(`${APP_NAME} v${APP_VERSION} (Build: ${BUILD_DATE})`);
     }
 
     // Event Listeners
     function setupEventListeners() {
         fileInput.addEventListener('change', handleFileSelect);
 
-        // Click handler for upload area - but not on the label itself
         uploadArea.addEventListener('click', (e) => {
-            // Don't trigger if clicking on the label
             if (e.target.tagName !== 'LABEL' && !e.target.closest('label')) {
-                fileInput.value = ''; // Reset to allow selecting the same file twice
+                fileInput.value = '';
                 fileInput.click();
             }
         });
@@ -174,8 +158,8 @@
             const contentWithoutFrontMatter = removeFrontMatter(content);
             parsedHtml = md.render(contentWithoutFrontMatter);
 
-            // Process Mermaid diagrams
-            await processMermaidDiagrams();
+            // Process ASCII art diagrams
+            await processAsciiArtDiagrams();
 
             // Display file info and preview
             displayFileInfo(file);
@@ -227,66 +211,56 @@
         return content.replace(frontMatterRegex, '');
     }
 
-    // Process Mermaid diagrams
-    async function processMermaidDiagrams() {
-        if (typeof mermaid === 'undefined') {
-            console.warn('Mermaid library not loaded');
+    // Process ASCII art diagrams
+    async function processAsciiArtDiagrams() {
+        if (typeof window.AsciiToSVG === 'undefined') {
+            console.warn('AsciiToSVG library not loaded');
             return;
         }
 
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = parsedHtml;
 
-        // Find all code blocks with mermaid language
-        const mermaidBlocks = tempDiv.querySelectorAll('pre > code.language-mermaid, code.language-mermaid');
+        // Find all code blocks with ascii/diagram language
+        const asciiBlocks = tempDiv.querySelectorAll('pre.ascii-diagram > code');
 
-        console.log(`Found ${mermaidBlocks.length} Mermaid code blocks`);
+        console.log(`Found ${asciiBlocks.length} ASCII art code blocks`);
 
-        if (mermaidBlocks.length === 0) {
+        if (asciiBlocks.length === 0) {
             return;
         }
 
-        for (let i = 0; i < mermaidBlocks.length; i++) {
-            const block = mermaidBlocks[i];
-            const mermaidCode = block.textContent.trim();
+        for (let i = 0; i < asciiBlocks.length; i++) {
+            const block = asciiBlocks[i];
+            const asciiCode = block.textContent.trim();
 
-            if (!mermaidCode) {
+            if (!asciiCode) {
                 continue;
             }
 
-            console.log(`Processing Mermaid diagram ${i + 1}:`, mermaidCode.substring(0, 50));
+            console.log(`Processing ASCII diagram ${i + 1}:`, asciiCode.substring(0, 50));
 
             try {
-                const uniqueId = `mermaid-diagram-${Date.now()}-${i}`;
-                const { svg } = await mermaid.render(uniqueId, mermaidCode);
+                // Convert ASCII art to SVG
+                const svg = window.AsciiToSVG.diagramToSVG(asciiCode, {
+                    backdrop: false,
+                    disableText: false,
+                    showGrid: false
+                });
+
                 const svgDiv = document.createElement('div');
-                svgDiv.className = 'mermaid-diagram';
+                svgDiv.className = 'ascii-diagram-svg';
                 svgDiv.innerHTML = svg;
 
                 // Replace the code block's parent <pre> element
                 const preElement = block.closest('pre');
                 if (preElement) {
                     preElement.replaceWith(svgDiv);
-                    console.log(`Replaced <pre> with diagram ${i + 1}`);
-                } else {
-                    block.parentElement.replaceWith(svgDiv);
-                    console.log(`Replaced parent with diagram ${i + 1}`);
+                    console.log(`Replaced <pre> with SVG diagram ${i + 1}`);
                 }
             } catch (error) {
-                console.error(`Failed to render Mermaid diagram ${i + 1}:`, error);
+                console.error(`Failed to render ASCII diagram ${i + 1}:`, error);
                 // Keep the original code block if rendering fails
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'mermaid-error';
-                errorDiv.style.color = '#e74c3c';
-                errorDiv.style.padding = '10px';
-                errorDiv.style.border = '1px solid #e74c3c';
-                errorDiv.style.borderRadius = '4px';
-                errorDiv.style.margin = '10px 0';
-                errorDiv.textContent = `Ошибка рендеринга Mermaid диаграммы: ${error.message}`;
-                const preElement = block.closest('pre');
-                if (preElement) {
-                    preElement.insertAdjacentElement('afterend', errorDiv);
-                }
             }
         }
 
@@ -331,8 +305,6 @@
             return;
         }
 
-        const format = document.querySelector('input[name="format"]:checked').value;
-
         // Show progress
         optionsSection.style.display = 'none';
         previewSection.style.display = 'none';
@@ -340,13 +312,8 @@
         progressSection.style.display = 'block';
 
         try {
-            if (format === 'pdf') {
-                progressText.textContent = 'Генерация PDF...';
-                await generatePDF();
-            } else if (format === 'docx') {
-                progressText.textContent = 'Генерация DOCX...';
-                await generateDOCX();
-            }
+            progressText.textContent = 'Генерация DOCX...';
+            await generateDOCX();
 
             // Success - reset after download
             setTimeout(reset, 2000);
@@ -357,90 +324,9 @@
         }
     }
 
-    // Generate PDF using Python backend server
-    async function generatePDF() {
-        console.log('Starting PDF generation via Python server');
-        console.log('Metadata:', metadata);
-        console.log('Parsed HTML length:', parsedHtml ? parsedHtml.length : 0);
-
-        if (!parsedHtml || parsedHtml.trim().length === 0) {
-            alert('Нет контента для генерации PDF. Пожалуйста, загрузите и обработайте файл.');
-            return;
-        }
-
-        try {
-            // Show loading indicator
-            const convertBtn = document.getElementById('convertBtn');
-            const originalText = convertBtn ? convertBtn.textContent : '';
-            if (convertBtn) {
-                convertBtn.disabled = true;
-                convertBtn.textContent = 'Генерация PDF...';
-            }
-
-            // Send HTML content to Python server
-            const response = await fetch(`${API_BASE_URL}/generate-pdf`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    html: parsedHtml,
-                    title: metadata.title || 'Document',
-                    author: metadata.author || '',
-                    date: metadata.date || ''
-                })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Server error');
-            }
-
-            // Download the PDF file
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = (metadata.title || 'document').replace(/[^a-z0-9а-яё]/gi, '_').toLowerCase() + '.pdf';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            console.log('PDF downloaded successfully');
-
-            // Restore button state
-            if (convertBtn) {
-                convertBtn.disabled = false;
-                convertBtn.textContent = originalText;
-            }
-
-        } catch (error) {
-            console.error('Error generating PDF:', error);
-
-            let errorMessage = 'Ошибка при генерации PDF: ' + error.message;
-            if (error.message.includes('Failed to fetch')) {
-                errorMessage += '\n\nУбедитесь, что Python сервер запущен:\npython3 server.py';
-            }
-
-            alert(errorMessage);
-
-            // Restore button state
-            const convertBtn = document.getElementById('convertBtn');
-            if (convertBtn) {
-                convertBtn.disabled = false;
-                convertBtn.textContent = 'Скачать PDF';
-            }
-        }
-    }
-
-// Generate DOCX using docx library
+    // Generate DOCX using docx library
     async function generateDOCX() {
-        const { Document, Packer, Paragraph, TextRun, HeadingLevel } = docx;
-
-        // Parse HTML to docx elements
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = parsedHtml;
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, WidthType } = docx;
 
         const children = [];
 
@@ -450,6 +336,9 @@
                 new Paragraph({
                     text: metadata.title,
                     heading: HeadingLevel.TITLE,
+                    spacing: {
+                        after: 200
+                    }
                 })
             );
         }
@@ -459,40 +348,35 @@
             children.push(
                 new Paragraph({
                     children: [new TextRun({ text: `Автор: ${metadata.author}`, italics: true })],
+                    spacing: {
+                        after: 100
+                    }
+                })
+            );
+        }
+
+        if (metadata.date) {
+            children.push(
+                new Paragraph({
+                    children: [new TextRun({ text: `Дата: ${metadata.date}`, italics: true })],
+                    spacing: {
+                        after: 200
+                    }
                 })
             );
         }
 
         children.push(new Paragraph({ text: '' })); // Empty line
 
-        // Convert HTML elements to docx paragraphs (simplified)
-        const elements = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6, p, pre, ul, ol');
+        // Parse HTML and convert to DOCX elements
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = parsedHtml;
 
-        elements.forEach(el => {
-            const tagName = el.tagName.toLowerCase();
-
-            if (tagName.startsWith('h')) {
-                const level = parseInt(tagName.substring(1));
-                children.push(
-                    new Paragraph({
-                        text: el.textContent,
-                        heading: HeadingLevel[`HEADING_${level}`] || HeadingLevel.HEADING_1,
-                    })
-                );
-            } else if (tagName === 'p') {
-                children.push(
-                    new Paragraph({
-                        text: el.textContent,
-                    })
-                );
-            } else if (tagName === 'pre') {
-                children.push(
-                    new Paragraph({
-                        children: [new TextRun({ text: el.textContent, font: 'Courier New' })],
-                    })
-                );
-            }
-        });
+        // Process all child elements
+        for (const element of tempDiv.children) {
+            const docxElements = await convertElementToDOCX(element);
+            children.push(...docxElements);
+        }
 
         const doc = new Document({
             sections: [{
@@ -502,9 +386,193 @@
         });
 
         const blob = await Packer.toBlob(doc);
-        const filename = metadata.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.docx';
+        const filename = metadata.title.replace(/[^a-z0-9а-яё ]/gi, '_').toLowerCase().replace(/\s+/g, '_') + '.docx';
 
         saveAs(blob, filename);
+        console.log('DOCX generated successfully:', filename);
+    }
+
+    // Convert HTML element to DOCX element(s)
+    async function convertElementToDOCX(element) {
+        const { Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType } = docx;
+        const tagName = element.tagName.toLowerCase();
+        const elements = [];
+
+        // Headings
+        if (tagName.startsWith('h') && tagName.length === 2) {
+            const level = parseInt(tagName.substring(1));
+            const headingLevels = {
+                1: HeadingLevel.HEADING_1,
+                2: HeadingLevel.HEADING_2,
+                3: HeadingLevel.HEADING_3,
+                4: HeadingLevel.HEADING_4,
+                5: HeadingLevel.HEADING_5,
+                6: HeadingLevel.HEADING_6
+            };
+
+            elements.push(
+                new Paragraph({
+                    text: element.textContent,
+                    heading: headingLevels[level] || HeadingLevel.HEADING_1,
+                    spacing: {
+                        before: 240,
+                        after: 120
+                    }
+                })
+            );
+        }
+        // Paragraphs
+        else if (tagName === 'p') {
+            elements.push(
+                new Paragraph({
+                    text: element.textContent,
+                    spacing: {
+                        after: 160
+                    }
+                })
+            );
+        }
+        // Code blocks
+        else if (tagName === 'pre') {
+            const codeText = element.textContent;
+            elements.push(
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: codeText,
+                            font: 'Courier New',
+                            size: 20
+                        })
+                    ],
+                    spacing: {
+                        before: 120,
+                        after: 120
+                    },
+                    shading: {
+                        fill: 'F6F8FA'
+                    }
+                })
+            );
+        }
+        // Lists
+        else if (tagName === 'ul' || tagName === 'ol') {
+            const listItems = element.querySelectorAll('li');
+            listItems.forEach((li, index) => {
+                const bullet = tagName === 'ul' ? '•' : `${index + 1}.`;
+                elements.push(
+                    new Paragraph({
+                        text: `${bullet} ${li.textContent}`,
+                        spacing: {
+                            after: 80
+                        },
+                        indent: {
+                            left: 720
+                        }
+                    })
+                );
+            });
+        }
+        // Tables
+        else if (tagName === 'table') {
+            const rows = element.querySelectorAll('tr');
+            const tableRows = [];
+
+            rows.forEach(tr => {
+                const cells = tr.querySelectorAll('th, td');
+                const tableCells = [];
+
+                cells.forEach(cell => {
+                    tableCells.push(
+                        new TableCell({
+                            children: [
+                                new Paragraph({
+                                    text: cell.textContent,
+                                    ...(cell.tagName.toLowerCase() === 'th' ? { bold: true } : {})
+                                })
+                            ],
+                            width: {
+                                size: 100 / cells.length,
+                                type: WidthType.PERCENTAGE
+                            }
+                        })
+                    );
+                });
+
+                tableRows.push(new TableRow({ children: tableCells }));
+            });
+
+            elements.push(
+                new Table({
+                    rows: tableRows,
+                    width: {
+                        size: 100,
+                        type: WidthType.PERCENTAGE
+                    }
+                })
+            );
+        }
+        // Blockquotes
+        else if (tagName === 'blockquote') {
+            elements.push(
+                new Paragraph({
+                    children: [
+                        new TextRun({
+                            text: element.textContent,
+                            italics: true,
+                            color: '666666'
+                        })
+                    ],
+                    indent: {
+                        left: 720
+                    },
+                    spacing: {
+                        before: 120,
+                        after: 120
+                    }
+                })
+            );
+        }
+        // ASCII diagram SVG (insert as text placeholder)
+        else if (element.classList.contains('ascii-diagram-svg')) {
+            elements.push(
+                new Paragraph({
+                    text: '[ASCII Diagram - см. предпросмотр]',
+                    spacing: {
+                        before: 120,
+                        after: 120
+                    },
+                    alignment: AlignmentType.CENTER,
+                    italics: true,
+                    color: '0066CC'
+                })
+            );
+        }
+        // Horizontal rule
+        else if (tagName === 'hr') {
+            elements.push(
+                new Paragraph({
+                    text: '─'.repeat(50),
+                    alignment: AlignmentType.CENTER,
+                    spacing: {
+                        before: 120,
+                        after: 120
+                    }
+                })
+            );
+        }
+        // Default: just text
+        else if (element.textContent.trim()) {
+            elements.push(
+                new Paragraph({
+                    text: element.textContent,
+                    spacing: {
+                        after: 80
+                    }
+                })
+            );
+        }
+
+        return elements;
     }
 
     // Show error
@@ -531,8 +599,6 @@
         errorSection.style.display = 'none';
 
         uploadArea.style.display = 'block';
-
-        document.querySelector('input[name="format"][value="pdf"]').checked = true;
     }
 
     // Initialize application
