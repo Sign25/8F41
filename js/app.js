@@ -1,24 +1,35 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.0 - Замена на svgbob-wasm для лучшей обработки ASCII art
+// Версия 3.3.1 - Исправление загрузки svgbob-wasm и генерации DOCX
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.0';
+    const APP_VERSION = '3.3.1';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
     // Load svgbob-wasm dynamically
     let svgbobRender = null;
+    console.log('Attempting to load svgbob-wasm...');
     try {
-        const svgbobModule = await import('https://esm.sh/svgbob-wasm@1.0.0');
+        // Try unpkg first
+        const svgbobModule = await import('https://unpkg.com/svgbob-wasm@1.0.0/svgbob_wasm.js');
+        await svgbobModule.default();  // Initialize WASM
         svgbobRender = svgbobModule.render;
-        console.log('✓ svgbob-wasm loaded successfully');
+        console.log('✓ svgbob-wasm loaded successfully from unpkg');
     } catch (error) {
-        console.warn('Failed to load svgbob-wasm:', error);
-        console.warn('ASCII diagrams will be displayed as formatted code');
+        console.warn('Failed to load svgbob-wasm from unpkg:', error.message);
+        try {
+            // Try esm.sh as fallback
+            const svgbobModule = await import('https://esm.sh/svgbob-wasm@1.0.0');
+            svgbobRender = svgbobModule.render;
+            console.log('✓ svgbob-wasm loaded successfully from esm.sh');
+        } catch (error2) {
+            console.warn('Failed to load svgbob-wasm from esm.sh:', error2.message);
+            console.warn('→ ASCII diagrams will be displayed as formatted code');
+        }
     }
 
     // DOM Elements
@@ -516,14 +527,18 @@
 
     // Generate DOCX using docx library
     async function generateDOCX() {
+        console.log('Starting DOCX generation...');
+
         // Check if docx library is loaded
         if (typeof docx === 'undefined') {
             throw new Error('Библиотека docx.js не загружена. Обновите страницу.');
         }
 
+        console.log('docx library loaded, extracting components...');
         const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, WidthType, ImageRun, Media, BorderStyle } = docx;
 
         const children = [];
+        console.log('Starting to process elements...');
 
         // Add title
         if (metadata.title) {
@@ -567,12 +582,23 @@
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = parsedHtml;
 
+        console.log(`Processing ${tempDiv.children.length} HTML elements...`);
+
         // Process all child elements
+        let elementIndex = 0;
         for (const element of tempDiv.children) {
-            const docxElements = await convertElementToDOCX(element);
-            children.push(...docxElements);
+            elementIndex++;
+            console.log(`Processing element ${elementIndex}/${tempDiv.children.length}: ${element.tagName}`);
+            try {
+                const docxElements = await convertElementToDOCX(element);
+                children.push(...docxElements);
+            } catch (error) {
+                console.error(`Error processing element ${elementIndex}:`, error);
+                throw error;
+            }
         }
 
+        console.log('Creating DOCX document structure...');
         const doc = new Document({
             styles: {
                 default: {
@@ -647,11 +673,15 @@
             }],
         });
 
+        console.log('Packing document to blob...');
         const blob = await Packer.toBlob(doc);
+        console.log('Blob created, size:', blob.size, 'bytes');
+
         const filename = metadata.title.replace(/[^a-z0-9а-яё ]/gi, '_').toLowerCase().replace(/\s+/g, '_') + '.docx';
 
+        console.log('Saving file:', filename);
         saveAs(blob, filename);
-        console.log('DOCX generated successfully:', filename);
+        console.log('✓ DOCX generated successfully:', filename);
     }
 
     // Convert HTML element to DOCX element(s)
@@ -863,6 +893,7 @@
         }
         // ASCII diagram as SVG - вставка как изображение
         else if (element.classList.contains('ascii-diagram-svg')) {
+            console.log('Converting ASCII diagram SVG to PNG...');
             try {
                 const imageBuffer = await svgToPng(element);
                 const imageData = new Uint8Array(imageBuffer);
@@ -948,6 +979,7 @@
         }
         // Mermaid diagram SVG - вставка как изображение
         else if (element.classList.contains('mermaid-diagram-svg')) {
+            console.log('Converting Mermaid diagram SVG to PNG...');
             try {
                 const imageBuffer = await svgToPng(element);
                 const imageData = new Uint8Array(imageBuffer);
@@ -970,6 +1002,7 @@
                         }
                     })
                 );
+                console.log('✓ Mermaid diagram inserted as image');
             } catch (error) {
                 console.error('Failed to convert Mermaid diagram to image:', error);
                 elements.push(
