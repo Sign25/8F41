@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.10 - Исправление SVG размеров и svgbob WASM
+// Версия 3.4.0 - Новые стили из style.docx
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.10';
+    const APP_VERSION = '3.4.0';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -265,9 +265,13 @@
 
     // Remove YAML front matter and metadata blocks
     function removeFrontMatter(content) {
-        // Remove YAML front matter
+        // Remove YAML front matter (between --- delimiters)
         const frontMatterRegex = /^---\s*\n[\s\S]*?\n---\s*\n/;
         content = content.replace(frontMatterRegex, '');
+
+        // Remove filename with date/time (e.g., "# filename.md (2025-11-19 15:30)")
+        const filenameWithDateRegex = /^#\s+[\w.-]+\s+\([0-9]{4}-[0-9]{2}-[0-9]{2}[^\)]*\)\s*\n/;
+        content = content.replace(filenameWithDateRegex, '');
 
         // Remove metadata header at the beginning (Проект, Документ, Дата, Версия, Статус)
         // Match lines starting with **Key:** value, followed by optional ---
@@ -698,7 +702,7 @@
                     document: {
                         run: {
                             font: 'Times New Roman',
-                            size: 28  // 14pt (half-points)
+                            size: 24  // 12pt (matching style.docx)
                         },
                         paragraph: {
                             spacing: {
@@ -717,7 +721,7 @@
                         next: 'Normal',
                         run: {
                             font: 'Times New Roman',
-                            size: 28  // 14pt
+                            size: 24  // 12pt (matching style.docx)
                         },
                         paragraph: {
                             spacing: {
@@ -738,7 +742,7 @@
                         next: 'Normal',
                         run: {
                             font: 'Times New Roman',
-                            size: 32,  // 16pt
+                            size: 32,  // 16pt (matching style.docx heading 1)
                             bold: true
                         },
                         paragraph: {
@@ -795,14 +799,14 @@
                 6: HeadingLevel.HEADING_6
             };
 
-            // Размеры шрифтов для заголовков (в half-points)
+            // Размеры шрифтов для заголовков (в half-points) - matching style.docx
             const fontSizes = {
-                1: 32,  // 16pt
-                2: 28,  // 14pt
-                3: 26,  // 13pt
+                1: 32,  // 16pt (Heading 1 from style.docx)
+                2: 28,  // 14pt (Heading 2 from style.docx)
+                3: 24,  // 12pt (Heading 3 from style.docx)
                 4: 24,  // 12pt
-                5: 22,  // 11pt
-                6: 22   // 11pt
+                5: 24,  // 12pt
+                6: 24   // 12pt
             };
 
             elements.push(
@@ -838,7 +842,7 @@
                     },
                     run: {
                         font: 'Times New Roman',
-                        size: 28  // 14pt
+                        size: 24  // 12pt (matching style.docx)
                     }
                 })
             );
@@ -869,27 +873,27 @@
                 })
             );
         }
-        // Lists - компактный стиль
+        // Lists - стиль из style.docx
         else if (tagName === 'ul' || tagName === 'ol') {
             const listItems = element.querySelectorAll('li');
             listItems.forEach((li, index) => {
-                const bullet = tagName === 'ul' ? '-' : `${index + 1}.`;
+                const bullet = tagName === 'ul' ? '●' : `${index + 1}.`;  // Changed to ● bullet
                 elements.push(
                     new Paragraph({
                         children: [
                             new TextRun({
                                 text: `${bullet} ${removeEmoji(li.textContent)}`,
                                 font: 'Times New Roman',
-                                size: 28  // 14pt
+                                size: 24  // 12pt (matching style.docx)
                             })
                         ],
                         spacing: {
-                            after: 100,
+                            after: 160,  // Matching document default
                             line: 240  // 1.0 line spacing
                         },
                         indent: {
-                            left: 720,
-                            hanging: 360
+                            left: 720,   // Matching style.docx
+                            hanging: 360  // Matching style.docx
                         },
                         alignment: AlignmentType.JUSTIFIED
                     })
@@ -909,16 +913,16 @@
                 cells.forEach(cell => {
                     const isHeaderCell = cell.tagName.toLowerCase() === 'th';
 
-                    // Определяем цвет фона строки
+                    // Определяем цвет фона строки - matching style.docx
                     let rowShading = 'FFFFFF';  // Белый по умолчанию
                     if (isHeaderRow) {
-                        rowShading = '003087';  // Тёмно-синий для заголовка
+                        rowShading = 'F2F2F2';  // Светло-серый для заголовка (from style.docx)
                     } else if (rowIndex % 2 === 0) {
-                        rowShading = 'F5F5F6';  // Светло-серый для чётных строк
+                        rowShading = 'F2F2F2';  // Светло-серый для чётных строк (from style.docx)
                     }
 
-                    // Определяем цвет текста
-                    const textColor = isHeaderRow ? 'FFFFFF' : '000000';
+                    // Определяем цвет текста - всегда черный (from style.docx)
+                    const textColor = '000000';
 
                     tableCells.push(
                         new TableCell({
