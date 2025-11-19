@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.1.0 - только DOCX генерация с поддержкой ASCII Art и Mermaid диаграмм
+// Версия 3.2.0 - DOCX с академическим форматированием + SVG диаграммы как изображения
 
 (function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.1.0';
+    const APP_VERSION = '3.2.0';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -416,6 +416,48 @@
         }
     }
 
+    // Convert SVG element to PNG data URL
+    async function svgToPng(svgElement) {
+        return new Promise((resolve, reject) => {
+            try {
+                // Get SVG content
+                const svgString = svgElement.innerHTML;
+                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(svgBlob);
+
+                // Create image
+                const img = new Image();
+                img.onload = function() {
+                    // Create canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width || 800;
+                    canvas.height = img.height || 600;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+
+                    // Convert to PNG
+                    canvas.toBlob((blob) => {
+                        URL.revokeObjectURL(url);
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsArrayBuffer(blob);
+                    }, 'image/png');
+                };
+                img.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    reject(new Error('Failed to load SVG'));
+                };
+                img.src = url;
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
     // Generate DOCX using docx library
     async function generateDOCX() {
         // Check if docx library is loaded
@@ -423,7 +465,7 @@
             throw new Error('Библиотека docx.js не загружена. Обновите страницу.');
         }
 
-        const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, WidthType } = docx;
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, WidthType, ImageRun, Media, BorderStyle } = docx;
 
         const children = [];
 
@@ -476,8 +518,75 @@
         }
 
         const doc = new Document({
+            styles: {
+                default: {
+                    document: {
+                        run: {
+                            font: 'Times New Roman',
+                            size: 22  // 11pt (half-points)
+                        },
+                        paragraph: {
+                            spacing: {
+                                line: 276,  // 1.15 line spacing
+                                before: 0,
+                                after: 160
+                            }
+                        }
+                    }
+                },
+                paragraphStyles: [
+                    {
+                        id: 'Normal',
+                        name: 'Normal',
+                        basedOn: 'Normal',
+                        next: 'Normal',
+                        run: {
+                            font: 'Times New Roman',
+                            size: 22
+                        },
+                        paragraph: {
+                            spacing: {
+                                line: 276,
+                                before: 0,
+                                after: 160
+                            },
+                            indent: {
+                                firstLine: 720  // 0.5 inch first line indent
+                            },
+                            alignment: AlignmentType.JUSTIFIED
+                        }
+                    },
+                    {
+                        id: 'Heading1',
+                        name: 'Heading 1',
+                        basedOn: 'Normal',
+                        next: 'Normal',
+                        run: {
+                            font: 'Times New Roman',
+                            size: 32,  // 16pt
+                            bold: true
+                        },
+                        paragraph: {
+                            spacing: {
+                                before: 480,
+                                after: 240
+                            },
+                            alignment: AlignmentType.LEFT
+                        }
+                    }
+                ]
+            },
             sections: [{
-                properties: {},
+                properties: {
+                    page: {
+                        margin: {
+                            top: 1440,    // 1 inch
+                            right: 1440,
+                            bottom: 1440,
+                            left: 1440
+                        }
+                    }
+                },
                 children: children,
             }],
         });
@@ -491,11 +600,11 @@
 
     // Convert HTML element to DOCX element(s)
     async function convertElementToDOCX(element) {
-        const { Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType } = docx;
+        const { Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, ImageRun, Media } = docx;
         const tagName = element.tagName.toLowerCase();
         const elements = [];
 
-        // Headings
+        // Headings - академический стиль
         if (tagName.startsWith('h') && tagName.length === 2) {
             const level = parseInt(tagName.substring(1));
             const headingLevels = {
@@ -507,29 +616,55 @@
                 6: HeadingLevel.HEADING_6
             };
 
+            // Размеры шрифтов для заголовков (в half-points)
+            const fontSizes = {
+                1: 32,  // 16pt
+                2: 28,  // 14pt
+                3: 26,  // 13pt
+                4: 24,  // 12pt
+                5: 22,  // 11pt
+                6: 22   // 11pt
+            };
+
             elements.push(
                 new Paragraph({
                     text: element.textContent,
                     heading: headingLevels[level] || HeadingLevel.HEADING_1,
+                    style: 'Heading' + level,
                     spacing: {
-                        before: 240,
-                        after: 120
+                        before: level === 1 ? 480 : 360,
+                        after: level === 1 ? 240 : 180
+                    },
+                    run: {
+                        font: 'Times New Roman',
+                        size: fontSizes[level] || 22,
+                        bold: true
                     }
                 })
             );
         }
-        // Paragraphs
+        // Paragraphs - академический стиль с выравниванием по ширине
         else if (tagName === 'p') {
             elements.push(
                 new Paragraph({
                     text: element.textContent,
+                    style: 'Normal',
+                    alignment: AlignmentType.JUSTIFIED,
+                    indent: {
+                        firstLine: 720  // отступ первой строки
+                    },
                     spacing: {
+                        line: 276,
                         after: 160
+                    },
+                    run: {
+                        font: 'Times New Roman',
+                        size: 22
                     }
                 })
             );
         }
-        // Code blocks
+        // Code blocks - моноширинный шрифт
         else if (tagName === 'pre') {
             const codeText = element.textContent;
             elements.push(
@@ -538,58 +673,86 @@
                         new TextRun({
                             text: codeText,
                             font: 'Courier New',
-                            size: 20
+                            size: 20  // 10pt
                         })
                     ],
                     spacing: {
-                        before: 120,
-                        after: 120
+                        before: 240,
+                        after: 240
                     },
                     shading: {
-                        fill: 'F6F8FA'
+                        fill: 'F5F5F5'
+                    },
+                    indent: {
+                        left: 360,
+                        right: 360
                     }
                 })
             );
         }
-        // Lists
+        // Lists - компактный стиль
         else if (tagName === 'ul' || tagName === 'ol') {
             const listItems = element.querySelectorAll('li');
             listItems.forEach((li, index) => {
                 const bullet = tagName === 'ul' ? '•' : `${index + 1}.`;
                 elements.push(
                     new Paragraph({
-                        text: `${bullet} ${li.textContent}`,
+                        children: [
+                            new TextRun({
+                                text: `${bullet} ${li.textContent}`,
+                                font: 'Times New Roman',
+                                size: 22
+                            })
+                        ],
                         spacing: {
-                            after: 80
+                            after: 100,
+                            line: 276
                         },
                         indent: {
-                            left: 720
-                        }
+                            left: 720,
+                            hanging: 360
+                        },
+                        alignment: AlignmentType.JUSTIFIED
                     })
                 );
             });
         }
-        // Tables
+        // Tables - академический минималистичный стиль
         else if (tagName === 'table') {
             const rows = element.querySelectorAll('tr');
             const tableRows = [];
 
-            rows.forEach(tr => {
+            rows.forEach((tr, rowIndex) => {
                 const cells = tr.querySelectorAll('th, td');
                 const tableCells = [];
+                const isHeader = rowIndex === 0 || tr.querySelector('th') !== null;
 
                 cells.forEach(cell => {
+                    const isHeaderCell = cell.tagName.toLowerCase() === 'th';
                     tableCells.push(
                         new TableCell({
                             children: [
                                 new Paragraph({
-                                    text: cell.textContent,
-                                    ...(cell.tagName.toLowerCase() === 'th' ? { bold: true } : {})
+                                    children: [
+                                        new TextRun({
+                                            text: cell.textContent,
+                                            font: 'Times New Roman',
+                                            size: 20,  // 10pt для таблиц
+                                            bold: isHeaderCell
+                                        })
+                                    ],
+                                    alignment: AlignmentType.LEFT
                                 })
                             ],
                             width: {
                                 size: 100 / cells.length,
                                 type: WidthType.PERCENTAGE
+                            },
+                            margins: {
+                                top: 100,
+                                bottom: 100,
+                                left: 100,
+                                right: 100
                             }
                         })
                     );
@@ -604,60 +767,122 @@
                     width: {
                         size: 100,
                         type: WidthType.PERCENTAGE
+                    },
+                    borders: {
+                        top: { style: 'single', size: 1, color: '000000' },
+                        bottom: { style: 'single', size: 1, color: '000000' },
+                        left: { style: 'none' },
+                        right: { style: 'none' },
+                        insideHorizontal: { style: 'single', size: 1, color: 'CCCCCC' },
+                        insideVertical: { style: 'none' }
                     }
                 })
             );
+            elements.push(new Paragraph({ text: '' })); // Пустая строка после таблицы
         }
-        // Blockquotes
+        // Blockquotes - академический стиль
         else if (tagName === 'blockquote') {
             elements.push(
                 new Paragraph({
                     children: [
                         new TextRun({
                             text: element.textContent,
-                            italics: true,
-                            color: '666666'
+                            font: 'Times New Roman',
+                            size: 20,  // 10pt
+                            italics: true
                         })
                     ],
                     indent: {
-                        left: 720
+                        left: 720,
+                        right: 720
                     },
                     spacing: {
-                        before: 120,
-                        after: 120
-                    }
+                        before: 240,
+                        after: 240
+                    },
+                    alignment: AlignmentType.JUSTIFIED
                 })
             );
         }
-        // ASCII diagram SVG (insert as text placeholder)
+        // ASCII diagram SVG - вставка как изображение
         else if (element.classList.contains('ascii-diagram-svg')) {
-            elements.push(
-                new Paragraph({
-                    text: '[ASCII Diagram - см. предпросмотр]',
-                    spacing: {
-                        before: 120,
-                        after: 120
-                    },
-                    alignment: AlignmentType.CENTER,
-                    italics: true,
-                    color: '0066CC'
-                })
-            );
+            try {
+                const imageBuffer = await svgToPng(element);
+                const imageData = new Uint8Array(imageBuffer);
+
+                elements.push(
+                    new Paragraph({
+                        children: [
+                            new ImageRun({
+                                data: imageData,
+                                transformation: {
+                                    width: 600,
+                                    height: 400
+                                }
+                            })
+                        ],
+                        alignment: AlignmentType.CENTER,
+                        spacing: {
+                            before: 240,
+                            after: 240
+                        }
+                    })
+                );
+            } catch (error) {
+                console.error('Failed to convert ASCII diagram to image:', error);
+                elements.push(
+                    new Paragraph({
+                        text: '[ASCII Diagram - ошибка конвертации]',
+                        spacing: {
+                            before: 240,
+                            after: 240
+                        },
+                        alignment: AlignmentType.CENTER,
+                        italics: true,
+                        color: '999999'
+                    })
+                );
+            }
         }
-        // Mermaid diagram SVG (insert as text placeholder)
+        // Mermaid diagram SVG - вставка как изображение
         else if (element.classList.contains('mermaid-diagram-svg')) {
-            elements.push(
-                new Paragraph({
-                    text: '[Mermaid Diagram - см. предпросмотр]',
-                    spacing: {
-                        before: 120,
-                        after: 120
-                    },
-                    alignment: AlignmentType.CENTER,
-                    italics: true,
-                    color: '9933CC'
-                })
-            );
+            try {
+                const imageBuffer = await svgToPng(element);
+                const imageData = new Uint8Array(imageBuffer);
+
+                elements.push(
+                    new Paragraph({
+                        children: [
+                            new ImageRun({
+                                data: imageData,
+                                transformation: {
+                                    width: 600,
+                                    height: 400
+                                }
+                            })
+                        ],
+                        alignment: AlignmentType.CENTER,
+                        spacing: {
+                            before: 240,
+                            after: 240
+                        }
+                    })
+                );
+            } catch (error) {
+                console.error('Failed to convert Mermaid diagram to image:', error);
+                elements.push(
+                    new Paragraph({
+                        text: '[Mermaid Diagram - ошибка конвертации]',
+                        spacing: {
+                            before: 240,
+                            after: 240
+                        },
+                        alignment: AlignmentType.CENTER,
+                        italics: true,
+                        color: '999999'
+                    })
+                );
+            }
         }
         // Horizontal rule
         else if (tagName === 'hr') {
