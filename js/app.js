@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.2 - Исправление CORS ошибки при SVG→PNG конвертации
+// Версия 3.3.3 - Улучшенная поддержка Unicode ASCII art и отладка
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.2';
+    const APP_VERSION = '3.3.3';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -333,9 +333,12 @@
         // Find all code blocks with ascii/diagram language
         const asciiBlocks = tempDiv.querySelectorAll('pre.ascii-diagram > code');
 
+        console.log(`=== ASCII Art Processing ===`);
         console.log(`Found ${asciiBlocks.length} ASCII art code blocks`);
+        console.log(`svgbob-wasm available: ${svgbobRender !== null}`);
 
         if (asciiBlocks.length === 0) {
+            console.log('No ASCII art blocks found. Check if code is marked with ```ascii language tag.');
             return;
         }
 
@@ -344,15 +347,32 @@
             const asciiCode = block.textContent.trim();
 
             if (!asciiCode) {
+                console.log(`Diagram ${i + 1}: Empty content, skipping`);
                 continue;
             }
 
-            console.log(`Processing ASCII diagram ${i + 1}:`, asciiCode.substring(0, 50));
+            console.log(`\n--- Processing ASCII diagram ${i + 1} ---`);
+            console.log(`Content length: ${asciiCode.length} characters`);
+            console.log(`First line: ${asciiCode.split('\n')[0]}`);
+            console.log(`Contains Unicode: ${/[^\x00-\x7F]/.test(asciiCode)}`);
+
+            // Detect Unicode box-drawing characters
+            const hasUnicodeBoxDrawing = /[─│┌┐└┘├┤┬┴┼╭╮╯╰]/.test(asciiCode);
+            const hasUnicodeArrows = /[→←↑↓►◄▲▼]/.test(asciiCode);
+            if (hasUnicodeBoxDrawing) {
+                console.log(`✓ Contains Unicode box-drawing characters`);
+            }
+            if (hasUnicodeArrows) {
+                console.log(`✓ Contains Unicode arrow characters`);
+            }
 
             // Try to convert to SVG using svgbob-wasm
             if (svgbobRender) {
                 try {
+                    console.log(`Attempting svgbob conversion...`);
                     const svg = svgbobRender(asciiCode);
+
+                    console.log(`svgbob returned: ${svg ? svg.length : 0} characters`);
 
                     if (svg && svg.length > 0) {
                         const svgDiv = document.createElement('div');
@@ -363,22 +383,28 @@
                         const preElement = block.closest('pre');
                         if (preElement) {
                             preElement.replaceWith(svgDiv);
-                            console.log(`✓ Converted ASCII diagram ${i + 1} to SVG with svgbob`);
+                            console.log(`✓ Successfully converted ASCII diagram ${i + 1} to SVG`);
                             continue; // Successfully converted, move to next
                         }
+                    } else {
+                        console.warn(`svgbob returned empty result for diagram ${i + 1}`);
                     }
                 } catch (error) {
-                    console.warn(`Failed to render ASCII diagram ${i + 1} with svgbob:`, error);
-                    // Fall through to display as formatted code
+                    console.error(`svgbob error for diagram ${i + 1}:`, error);
+                    console.error(`Error type: ${error.name}, Message: ${error.message}`);
                 }
+            } else {
+                console.warn(`svgbob-wasm not loaded, cannot convert diagram ${i + 1}`);
             }
 
             // Fallback: display as formatted code block (no conversion)
+            console.log(`Using fallback display for diagram ${i + 1}`);
             const preElement = block.closest('pre');
             if (preElement) {
                 // Add special class for ASCII diagrams that will be styled differently
                 preElement.classList.add('ascii-diagram-code');
-                preElement.style.fontFamily = 'Monaco, Courier, monospace';
+                // Use fonts that support Unicode box-drawing characters
+                preElement.style.fontFamily = '"Courier New", Courier, "DejaVu Sans Mono", monospace';
                 preElement.style.fontSize = '12px';
                 preElement.style.lineHeight = '1.2';
                 preElement.style.backgroundColor = '#f8f8f8';
@@ -386,11 +412,15 @@
                 preElement.style.border = '1px solid #ddd';
                 preElement.style.borderRadius = '4px';
                 preElement.style.overflowX = 'auto';
-                console.log(`→ Displaying ASCII diagram ${i + 1} as formatted code`);
+                preElement.style.whiteSpace = 'pre';
+                // Ensure Unicode characters render properly
+                block.style.fontFamily = 'inherit';
+                console.log(`→ Displaying ASCII diagram ${i + 1} as formatted code (Unicode-aware)`);
             }
         }
 
         parsedHtml = tempDiv.innerHTML;
+        console.log(`=== ASCII Art Processing Complete ===\n`);
     }
 
     // Display file information
@@ -958,18 +988,31 @@
             const codeElement = element.querySelector('code');
             const asciiText = codeElement ? codeElement.textContent : element.textContent;
 
+            // Split into lines and create TextRun for each line with breaks
+            const lines = asciiText.split('\n');
+            const children = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                children.push(
+                    new TextRun({
+                        text: lines[i],
+                        font: 'Courier New',
+                        size: 18  // 9pt для ASCII art
+                    })
+                );
+                // Add line break between lines (except after last line)
+                if (i < lines.length - 1) {
+                    children.push(new TextRun({ break: 1 }));
+                }
+            }
+
             elements.push(
                 new Paragraph({
-                    children: [
-                        new TextRun({
-                            text: asciiText,
-                            font: 'Courier New',
-                            size: 18  // 9pt для ASCII
-                        })
-                    ],
+                    children: children,
                     spacing: {
                         before: 240,
-                        after: 240
+                        after: 240,
+                        line: 240  // Fixed line spacing for ASCII art
                     },
                     indent: {
                         left: 360,
@@ -986,7 +1029,7 @@
                     }
                 })
             );
-            console.log('→ ASCII diagram inserted as formatted code');
+            console.log(`→ ASCII diagram inserted as formatted code (${lines.length} lines, Unicode-aware)`);
         }
         // Mermaid diagram SVG - вставка как изображение
         else if (element.classList.contains('mermaid-diagram-svg')) {
