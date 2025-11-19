@@ -1,0 +1,39 @@
+# Конфигурация для reg.ru хостинга
+# Включает Passenger для запуска Python Flask приложения
+
+PassengerEnabled on
+PassengerAppRoot /home/u1234567/public_html/md
+PassengerPython /home/u1234567/virtualenv/md/bin/python3
+
+# Настройка окружения
+SetEnv PYTHON_ENV production
+SetEnv FLASK_ENV production
+
+# Обработка статических файлов напрямую (не через Flask)
+<FilesMatch "\.(html|css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$">
+    PassengerEnabled off
+</FilesMatch>
+
+# Настройки для CORS
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type"
+</IfModule>
+
+# Сжатие
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json
+</IfModule>
+
+# Кэширование статических файлов
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+</IfModule>

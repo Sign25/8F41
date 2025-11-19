@@ -364,5 +364,13 @@ def health():
 
 
 if __name__ == '__main__':
-    logger.info("Starting Flask server on http://localhost:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Определяем режим работы (development или production)
+    import os
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+
+    if is_production:
+        logger.info("Starting Flask server in PRODUCTION mode")
+        app.run(host='0.0.0.0', port=5000, debug=False)
+    else:
+        logger.info("Starting Flask server in DEVELOPMENT mode on http://localhost:5000")
+        app.run(host='0.0.0.0', port=5000, debug=True)

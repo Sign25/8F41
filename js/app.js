@@ -9,6 +9,11 @@
     const APP_NAME = 'Markdown Document Converter';
     const BUILD_DATE = '2024-11-18';
 
+    // API Configuration - автоматическое определение URL
+    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:5000'  // Локальная разработка
+        : window.location.origin;  // Продакшн (тот же домен)
+
     // DOM Elements
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
@@ -373,7 +378,7 @@
             }
 
             // Send HTML content to Python server
-            const response = await fetch('http://localhost:5000/generate-pdf', {
+            const response = await fetch(`${API_BASE_URL}/generate-pdf`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

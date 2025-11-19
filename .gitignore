@@ -30,6 +30,16 @@ venv/
 env/
 ENV/
 .venv
+virtualenv/
 pip-log.txt
 pip-delete-this-directory.txt
 .pytest_cache/
+
+# Passenger / REG.RU
+tmp/
+passenger.log
+*.pid
+
+# Environment
+.env
+.env.local
