@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.3.9 - Удаление emoji и исправление canvas
+// Версия 3.3.10 - Исправление SVG размеров и svgbob WASM
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.3.9';
+    const APP_VERSION = '3.3.10';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -30,6 +30,10 @@
         try {
             // Try esm.sh as fallback
             const svgbobModule = await import('https://esm.sh/svgbob-wasm@1.0.0');
+            // Initialize WASM for esm.sh as well
+            if (svgbobModule.default && typeof svgbobModule.default === 'function') {
+                await svgbobModule.default();
+            }
             svgbobRender = svgbobModule.render;
             console.log('[OK] svgbob-wasm loaded successfully from esm.sh');
         } catch (error2) {
@@ -522,15 +526,37 @@
                     svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 }
 
-                // Get dimensions and increase quality with 3x scale for near-vector quality
+                // Get dimensions from SVG
                 const bbox = svgNode.getBoundingClientRect();
-                let width = parseInt(svgClone.getAttribute('width')) || bbox.width || 800;
-                let height = parseInt(svgClone.getAttribute('height')) || bbox.height || 600;
+                const viewBox = svgClone.getAttribute('viewBox');
+
+                let width, height;
+
+                // Try to get dimensions from viewBox first (most reliable for Mermaid)
+                if (viewBox) {
+                    const viewBoxParts = viewBox.split(/\s+|,/);
+                    if (viewBoxParts.length === 4) {
+                        width = parseFloat(viewBoxParts[2]);
+                        height = parseFloat(viewBoxParts[3]);
+                        console.log(`Using viewBox dimensions: ${width}x${height}`);
+                    }
+                }
+
+                // Fallback to attributes or bbox
+                if (!width || !height) {
+                    width = parseInt(svgClone.getAttribute('width')) || bbox.width || 800;
+                    height = parseInt(svgClone.getAttribute('height')) || bbox.height || 600;
+                    console.log(`Using attribute/bbox dimensions: ${width}x${height}`);
+                }
+
+                console.log(`SVG original: ${svgClone.getAttribute('width')}x${svgClone.getAttribute('height')}, bbox: ${bbox.width}x${bbox.height}, viewBox: ${viewBox}`);
 
                 // Scale factor for better quality (3x for near-vector quality)
                 const scale = 3;
                 const scaledWidth = width * scale;
                 const scaledHeight = height * scale;
+
+                console.log(`Final dimensions: ${width}x${height}, scaled: ${scaledWidth}x${scaledHeight}`);
 
                 // Set explicit dimensions if not present
                 svgClone.setAttribute('width', width);
