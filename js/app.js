@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.4.0 - Новые стили из style.docx
+// Версия 3.4.1 - Исправление svgbob-wasm загрузки
 
 (async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.4.0';
+    const APP_VERSION = '3.4.1';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -20,24 +20,34 @@
     let svgbobRender = null;
     console.log('Attempting to load svgbob-wasm...');
     try {
-        // Try unpkg first
-        const svgbobModule = await import('https://unpkg.com/svgbob-wasm@1.0.0/svgbob_wasm.js');
-        await svgbobModule.default();  // Initialize WASM
+        // Try jsdelivr CDN (better WASM support)
+        const svgbobModule = await import('https://cdn.jsdelivr.net/npm/svgbob-wasm@1.0.0/+esm');
+
+        // Initialize WASM module
+        if (svgbobModule.default && typeof svgbobModule.default === 'function') {
+            const initResult = await svgbobModule.default();
+            console.log('[DEBUG] WASM initialized:', initResult);
+        }
+
         svgbobRender = svgbobModule.render;
-        console.log('[OK] svgbob-wasm loaded successfully from unpkg');
+        console.log('[OK] svgbob-wasm loaded successfully from jsdelivr');
+        console.log('[DEBUG] svgbobRender type:', typeof svgbobRender);
     } catch (error) {
-        console.warn('Failed to load svgbob-wasm from unpkg:', error.message);
+        console.warn('Failed to load svgbob-wasm from jsdelivr:', error.message);
         try {
-            // Try esm.sh as fallback
-            const svgbobModule = await import('https://esm.sh/svgbob-wasm@1.0.0');
-            // Initialize WASM for esm.sh as well
+            // Try skypack as fallback
+            const svgbobModule = await import('https://cdn.skypack.dev/svgbob-wasm@1.0.0');
+
+            // Initialize WASM
             if (svgbobModule.default && typeof svgbobModule.default === 'function') {
                 await svgbobModule.default();
+                console.log('[DEBUG] WASM initialized from skypack');
             }
+
             svgbobRender = svgbobModule.render;
-            console.log('[OK] svgbob-wasm loaded successfully from esm.sh');
+            console.log('[OK] svgbob-wasm loaded successfully from skypack');
         } catch (error2) {
-            console.warn('Failed to load svgbob-wasm from esm.sh:', error2.message);
+            console.warn('Failed to load svgbob-wasm from skypack:', error2.message);
             console.warn('[FALLBACK] ASCII diagrams will be displayed as formatted code');
         }
     }
