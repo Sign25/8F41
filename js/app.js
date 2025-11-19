@@ -1,12 +1,12 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.0.0 - только DOCX генерация с поддержкой ASCII Art
+// Версия 3.1.0 - только DOCX генерация с поддержкой ASCII Art и Mermaid диаграмм
 
 (function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.0.0';
+    const APP_VERSION = '3.1.0';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
 
@@ -47,6 +47,11 @@
                 return `<pre class="ascii-diagram"><code${langClass}>${md.utils.escapeHtml(str)}</code></pre>`;
             }
 
+            // For Mermaid diagrams, just return code block with language class
+            if (lang === 'mermaid') {
+                return `<pre class="mermaid-diagram"><code${langClass}>${md.utils.escapeHtml(str)}</code></pre>`;
+            }
+
             // For other languages, try to highlight
             if (lang && window.hljs && window.hljs.getLanguage(lang)) {
                 try {
@@ -58,6 +63,15 @@
             return '<pre class="hljs"><code' + langClass + '>' + md.utils.escapeHtml(str) + '</code></pre>';
         }
     }).enable('table');
+
+    // Initialize Mermaid
+    if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+    }
 
     // Initialize
     function init() {
@@ -71,6 +85,7 @@
         console.log('- docx:', typeof docx !== 'undefined' ? '✓' : '✗');
         console.log('- jsyaml:', typeof jsyaml !== 'undefined' ? '✓' : '✗');
         console.log('- hljs:', typeof hljs !== 'undefined' ? '✓' : '✗');
+        console.log('- mermaid:', typeof mermaid !== 'undefined' ? '✓' : '✗');
         console.log('- AsciiToSVG:', typeof window.AsciiToSVG !== 'undefined' ? '✓' : '✗');
     }
 
@@ -166,6 +181,9 @@
             const contentWithoutFrontMatter = removeFrontMatter(content);
             parsedHtml = md.render(contentWithoutFrontMatter);
 
+            // Process Mermaid diagrams
+            await processMermaidDiagrams();
+
             // Process ASCII art diagrams
             await processAsciiArtDiagrams();
 
@@ -217,6 +235,72 @@
     function removeFrontMatter(content) {
         const frontMatterRegex = /^---\s*\n[\s\S]*?\n---\s*\n/;
         return content.replace(frontMatterRegex, '');
+    }
+
+    // Process Mermaid diagrams
+    async function processMermaidDiagrams() {
+        if (typeof mermaid === 'undefined') {
+            console.warn('Mermaid library not loaded');
+            return;
+        }
+
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = parsedHtml;
+
+        // Find all code blocks with mermaid language
+        const mermaidBlocks = tempDiv.querySelectorAll('pre.mermaid-diagram > code');
+
+        console.log(`Found ${mermaidBlocks.length} Mermaid code blocks`);
+
+        if (mermaidBlocks.length === 0) {
+            return;
+        }
+
+        for (let i = 0; i < mermaidBlocks.length; i++) {
+            const block = mermaidBlocks[i];
+            const mermaidCode = block.textContent.trim();
+
+            if (!mermaidCode) {
+                continue;
+            }
+
+            console.log(`Processing Mermaid diagram ${i + 1}:`, mermaidCode.substring(0, 50));
+
+            try {
+                const uniqueId = `mermaid-diagram-${Date.now()}-${i}`;
+                const { svg } = await mermaid.render(uniqueId, mermaidCode);
+                const svgDiv = document.createElement('div');
+                svgDiv.className = 'mermaid-diagram-svg';
+                svgDiv.innerHTML = svg;
+
+                // Replace the code block's parent <pre> element
+                const preElement = block.closest('pre');
+                if (preElement) {
+                    preElement.replaceWith(svgDiv);
+                    console.log(`Replaced <pre> with Mermaid diagram ${i + 1}`);
+                } else {
+                    block.parentElement.replaceWith(svgDiv);
+                    console.log(`Replaced parent with Mermaid diagram ${i + 1}`);
+                }
+            } catch (error) {
+                console.error(`Failed to render Mermaid diagram ${i + 1}:`, error);
+                // Keep the original code block if rendering fails
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'mermaid-error';
+                errorDiv.style.color = '#e74c3c';
+                errorDiv.style.padding = '10px';
+                errorDiv.style.border = '1px solid #e74c3c';
+                errorDiv.style.borderRadius = '4px';
+                errorDiv.style.margin = '10px 0';
+                errorDiv.textContent = `Ошибка рендеринга Mermaid диаграммы: ${error.message}`;
+                const preElement = block.closest('pre');
+                if (preElement) {
+                    preElement.insertAdjacentElement('afterend', errorDiv);
+                }
+            }
+        }
+
+        parsedHtml = tempDiv.innerHTML;
     }
 
     // Process ASCII art diagrams
@@ -557,6 +641,21 @@
                     alignment: AlignmentType.CENTER,
                     italics: true,
                     color: '0066CC'
+                })
+            );
+        }
+        // Mermaid diagram SVG (insert as text placeholder)
+        else if (element.classList.contains('mermaid-diagram-svg')) {
+            elements.push(
+                new Paragraph({
+                    text: '[Mermaid Diagram - см. предпросмотр]',
+                    spacing: {
+                        before: 120,
+                        after: 120
+                    },
+                    alignment: AlignmentType.CENTER,
+                    italics: true,
+                    color: '9933CC'
                 })
             );
         }
