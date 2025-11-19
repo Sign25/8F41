@@ -1,14 +1,25 @@
 // Markdown to Word Converter - Browser-Only Application
 // Полностью работает в браузере, без бэкенда
-// Версия 3.2.1 - Исправления конвертации диаграмм и стилей таблиц
+// Версия 3.3.0 - Замена на svgbob-wasm для лучшей обработки ASCII art
 
-(function() {
+(async function() {
     'use strict';
 
     // Version
-    const APP_VERSION = '3.2.1';
+    const APP_VERSION = '3.3.0';
     const APP_NAME = 'Markdown to Word Converter';
     const BUILD_DATE = '2025-11-19';
+
+    // Load svgbob-wasm dynamically
+    let svgbobRender = null;
+    try {
+        const svgbobModule = await import('https://esm.sh/svgbob-wasm@1.0.0');
+        svgbobRender = svgbobModule.render;
+        console.log('✓ svgbob-wasm loaded successfully');
+    } catch (error) {
+        console.warn('Failed to load svgbob-wasm:', error);
+        console.warn('ASCII diagrams will be displayed as formatted code');
+    }
 
     // DOM Elements
     const uploadArea = document.getElementById('uploadArea');
@@ -86,7 +97,7 @@
         console.log('- jsyaml:', typeof jsyaml !== 'undefined' ? '✓' : '✗');
         console.log('- hljs:', typeof hljs !== 'undefined' ? '✓' : '✗');
         console.log('- mermaid:', typeof mermaid !== 'undefined' ? '✓' : '✗');
-        console.log('- AsciiToSVG:', typeof window.AsciiToSVG !== 'undefined' ? '✓' : '✗');
+        console.log('- svgbob:', svgbobRender !== null ? '✓' : '✗');
     }
 
     // Update version info in footer
@@ -303,7 +314,7 @@
         parsedHtml = tempDiv.innerHTML;
     }
 
-    // Process ASCII art diagrams
+    // Process ASCII art diagrams using svgbob-wasm
     async function processAsciiArtDiagrams() {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = parsedHtml;
@@ -327,14 +338,10 @@
 
             console.log(`Processing ASCII diagram ${i + 1}:`, asciiCode.substring(0, 50));
 
-            // Try to convert to SVG if library is available
-            if (typeof window.AsciiToSVG !== 'undefined' && typeof window.AsciiToSVG.diagramToSVG === 'function') {
+            // Try to convert to SVG using svgbob-wasm
+            if (svgbobRender) {
                 try {
-                    const svg = window.AsciiToSVG.diagramToSVG(asciiCode, {
-                        backdrop: false,
-                        disableText: false,
-                        showGrid: false
-                    });
+                    const svg = svgbobRender(asciiCode);
 
                     if (svg && svg.length > 0) {
                         const svgDiv = document.createElement('div');
@@ -345,12 +352,12 @@
                         const preElement = block.closest('pre');
                         if (preElement) {
                             preElement.replaceWith(svgDiv);
-                            console.log(`✓ Converted ASCII diagram ${i + 1} to SVG`);
+                            console.log(`✓ Converted ASCII diagram ${i + 1} to SVG with svgbob`);
                             continue; // Successfully converted, move to next
                         }
                     }
                 } catch (error) {
-                    console.warn(`Failed to render ASCII diagram ${i + 1}:`, error);
+                    console.warn(`Failed to render ASCII diagram ${i + 1} with svgbob:`, error);
                     // Fall through to display as formatted code
                 }
             }
